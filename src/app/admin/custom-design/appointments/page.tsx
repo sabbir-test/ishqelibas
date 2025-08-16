@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Calendar, Clock, User, Phone, Mail, MapPin, CheckCircle, XCircle, Clock as ClockIcon } from 'lucide-react'
+import { Calendar, Clock, User, Phone, Mail, MapPin, CheckCircle, XCircle, Clock as ClockIcon, Ruler } from 'lucide-react'
 import { format } from 'date-fns'
 
 interface Appointment {
@@ -359,7 +359,7 @@ export default function AdminAppointmentsPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="notes">Add Notes</Label>
+                    <Label>Add Notes</Label>
                     <Textarea
                       id="notes"
                       placeholder="Add notes about this appointment..."
@@ -371,6 +371,7 @@ export default function AdminAppointmentsPage() {
                     />
                     <Button
                       onClick={() => updateAppointmentStatus(
+                        selectedAppointment.id,
                         selectedAppointment.status,
                         selectedAppointment.notes
                       )}
@@ -380,6 +381,21 @@ export default function AdminAppointmentsPage() {
                       {isUpdating ? 'Updating...' : 'Update Notes'}
                     </Button>
                   </div>
+
+                  {selectedAppointment.status === 'CONFIRMED' && (
+                    <div className="space-y-2">
+                      <Button 
+                        onClick={() => {
+                          // Navigate to measurement page with pre-selected user
+                          window.location.href = `/admin/measurements?userId=${selectedAppointment.userId}&customOrderId=${selectedAppointment.customOrderId}`
+                        }}
+                        className="w-full bg-blue-600 hover:bg-blue-700"
+                      >
+                        <Ruler className="h-4 w-4 mr-2" />
+                        Take Measurements
+                      </Button>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <p className="text-center text-gray-500 py-8">

@@ -213,6 +213,11 @@ export default function CustomDesignPage() {
   const [showVariantsModal, setShowVariantsModal] = useState(false)
   const [selectedDesignForVariants, setSelectedDesignForVariants] = useState<BlouseDesign | null>(null)
   const [variantsModalDesignType, setVariantsModalDesignType] = useState<"front" | "back">("front")
+  const [showDateTimePicker, setShowDateTimePicker] = useState(false)
+  const [selectedDate, setSelectedDate] = useState("")
+  const [selectedTime, setSelectedTime] = useState("")
+  const [appointmentNotes, setAppointmentNotes] = useState("")
+  const [appointmentType, setAppointmentType] = useState<"virtual" | "in-person">("virtual")
   
   const { addItem } = useCart()
   const { toast } = useToast()
@@ -403,23 +408,24 @@ export default function CustomDesignPage() {
   const calculatePrice = () => {
     if (!design.fabric) return 0
     
-    // Base price for custom blouse
-    let basePrice = 1500
+    let totalPrice = 0
     
     // Add fabric cost (only if not customer's own fabric)
     if (!design.fabric.isOwnFabric) {
-      basePrice += design.fabric.pricePerMeter * 1.5
+      totalPrice += design.fabric.pricePerMeter * 1.5 // Assuming 1.5 meters per blouse
     }
     
-    // Add model costs
+    // Add front blouse model price
     if (design.selectedModels.frontModel) {
-      basePrice += design.selectedModels.frontModel.finalPrice
-    }
-    if (design.selectedModels.backModel) {
-      basePrice += design.selectedModels.backModel.finalPrice
+      totalPrice += design.selectedModels.frontModel.finalPrice
     }
     
-    return basePrice
+    // Add back blouse model price
+    if (design.selectedModels.backModel) {
+      totalPrice += design.selectedModels.backModel.finalPrice
+    }
+    
+    return totalPrice
   }
 
   const formatPrice = (price: number) => {
@@ -541,7 +547,13 @@ export default function CustomDesignPage() {
         quantity: 1,
         image: design.fabric.image || "/api/placeholder/200/200",
         sku: `CUSTOM-${Date.now()}`,
-        customDesign: design
+        customDesign: design,
+        isCustomDesign: true,
+        // Add design pricing information for cart display
+        frontDesignName: design.selectedModels.frontModel?.name,
+        frontDesignPrice: design.selectedModels.frontModel?.finalPrice,
+        backDesignName: design.selectedModels.backModel?.name,
+        backDesignPrice: design.selectedModels.backModel?.finalPrice
       }
 
       addItem(customOrder)
@@ -579,6 +591,13 @@ export default function CustomDesignPage() {
         }
       })
       setCurrentStep("fabric")
+      
+      // Reset appointment-related state
+      setShowDateTimePicker(false)
+      setSelectedDate("")
+      setSelectedTime("")
+      setAppointmentNotes("")
+      setAppointmentType("virtual")
     } catch (error) {
       toast({
         title: "Error",
@@ -1254,10 +1273,9 @@ export default function CustomDesignPage() {
                             variant={design.appointmentDate ? "default" : "outline"}
                             className="justify-start"
                             onClick={() => {
-                              // For demo purposes, set a mock appointment date
-                              const tomorrow = new Date()
-                              tomorrow.setDate(tomorrow.getDate() + 1)
-                              handleAppointmentDateChange(tomorrow.toISOString())
+                              // Show date/time selection for virtual call
+                              setShowDateTimePicker(true)
+                              setAppointmentType("virtual")
                             }}
                           >
                             <Calendar className="h-4 w-4 mr-2" />
@@ -1267,10 +1285,8 @@ export default function CustomDesignPage() {
                             variant="outline"
                             className="justify-start"
                             onClick={() => {
-                              toast({
-                                title: "In-Person Booking",
-                                description: "Please visit our store for in-person measurements.",
-                              })
+                              setShowDateTimePicker(true)
+                              setAppointmentType("in-person")
                             }}
                           >
                             <Calendar className="h-4 w-4 mr-2" />
@@ -1279,6 +1295,98 @@ export default function CustomDesignPage() {
                         </div>
                       </div>
 
+                      {/* Date and Time Picker Modal */}
+                      {showDateTimePicker && (
+                        <Card className="border-2 border-blue-200">
+                          <CardHeader>
+                            <CardTitle className="text-lg">Select Appointment Date & Time</CardTitle>
+                            <CardDescription>
+                              Choose your preferred date and time for {appointmentType === "virtual" ? "virtual" : "in-person"} measurement
+                            </CardDescription>
+                          </CardHeader>
+                          <CardContent className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <Label htmlFor="appointment-date">Date</Label>
+                                <Input
+                                  id="appointment-date"
+                                  type="date"
+                                  min={new Date().toISOString().split('T')[0]}
+                                  value={selectedDate}
+                                  onChange={(e) => setSelectedDate(e.target.value)}
+                                  className="mt-1"
+                                />
+                              </div>
+                              <div>
+                                <Label htmlFor="appointment-time">Time</Label>
+                                <Select value={selectedTime} onValueChange={setSelectedTime}>
+                                  <SelectTrigger className="mt-1">
+                                    <SelectValue placeholder="Select time" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="09:00">9:00 AM</SelectItem>
+                                    <SelectItem value="10:00">10:00 AM</SelectItem>
+                                    <SelectItem value="11:00">11:00 AM</SelectItem>
+                                    <SelectItem value="14:00">2:00 PM</SelectItem>
+                                    <SelectItem value="15:00">3:00 PM</SelectItem>
+                                    <SelectItem value="16:00">4:00 PM</SelectItem>
+                                    <SelectItem value="17:00">5:00 PM</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </div>
+                            
+                            <div>
+                              <Label htmlFor="appointment-notes">Special Requirements (Optional)</Label>
+                              <Textarea
+                                id="appointment-notes"
+                                placeholder="Any specific requirements or notes for your appointment..."
+                                value={appointmentNotes}
+                                onChange={(e) => setAppointmentNotes(e.target.value)}
+                                className="mt-1"
+                                rows={2}
+                              />
+                            </div>
+
+                            <div className="flex space-x-2">
+                              <Button 
+                                onClick={() => {
+                                  if (selectedDate && selectedTime) {
+                                    const appointmentDateTime = new Date(`${selectedDate}T${selectedTime}`)
+                                    handleAppointmentDateChange(appointmentDateTime.toISOString())
+                                    setShowDateTimePicker(false)
+                                    toast({
+                                      title: "Appointment Scheduled",
+                                      description: `Your ${appointmentType} appointment is scheduled for ${appointmentDateTime.toLocaleDateString()} at ${appointmentDateTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`,
+                                    })
+                                  } else {
+                                    toast({
+                                      title: "Incomplete Selection",
+                                      description: "Please select both date and time for your appointment.",
+                                      variant: "destructive"
+                                    })
+                                  }
+                                }}
+                                disabled={!selectedDate || !selectedTime}
+                              >
+                                Confirm Appointment
+                              </Button>
+                              <Button 
+                                variant="outline" 
+                                onClick={() => {
+                                  setShowDateTimePicker(false)
+                                  setSelectedDate("")
+                                  setSelectedTime("")
+                                  setAppointmentNotes("")
+                                }}
+                              >
+                                Cancel
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
+
                       {design.appointmentDate && (
                         <div className="p-4 bg-green-50 rounded-lg border border-green-200">
                           <div className="flex items-start space-x-3">
@@ -1286,8 +1394,13 @@ export default function CustomDesignPage() {
                             <div>
                               <h4 className="font-medium text-green-900">Appointment Scheduled</h4>
                               <p className="text-sm text-green-700 mt-1">
-                                Virtual measurement appointment scheduled for {new Date(design.appointmentDate).toLocaleDateString()}
+                                {appointmentType === "virtual" ? "Virtual" : "In-person"} measurement appointment scheduled for {new Date(design.appointmentDate).toLocaleDateString()} at {new Date(design.appointmentDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                               </p>
+                              {appointmentNotes && (
+                                <p className="text-sm text-green-600 mt-1">
+                                  Notes: {appointmentNotes}
+                                </p>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -1422,37 +1535,40 @@ export default function CustomDesignPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span>Base Price:</span>
-                      <span>₹1,500</span>
-                    </div>
+                    {/* Fabric Cost */}
                     {!design.fabric?.isOwnFabric && design.fabric && (
                       <div className="flex justify-between">
-                        <span>Fabric ({design.fabric.name}):</span>
+                        <span>Fabric Cost ({design.fabric.name}):</span>
                         <span>₹{(design.fabric.pricePerMeter * 1.5).toLocaleString()}</span>
                       </div>
                     )}
-                    {design.frontDesign && (
+                    
+                    {/* Front Blouse Model Price */}
+                    {design.selectedModels.frontModel && (
                       <div className="flex justify-between">
-                        <span>Front Design:</span>
-                        <span>₹300</span>
+                        <span>Front Model ({design.selectedModels.frontModel.name}):</span>
+                        <span>₹{design.selectedModels.frontModel.finalPrice.toLocaleString()}</span>
                       </div>
                     )}
-                    {design.backDesign && (
+                    
+                    {/* Back Blouse Model Price */}
+                    {design.selectedModels.backModel && (
                       <div className="flex justify-between">
-                        <span>Back Design:</span>
-                        <span>₹300</span>
+                        <span>Back Model ({design.selectedModels.backModel.name}):</span>
+                        <span>₹{design.selectedModels.backModel.finalPrice.toLocaleString()}</span>
                       </div>
                     )}
+                    
+                    {/* Fabric Savings for Own Fabric */}
                     {design.fabric?.isOwnFabric && (
                       <div className="flex justify-between text-green-600">
-                        <span>Fabric Savings:</span>
+                        <span>Fabric Savings (Customer's own fabric):</span>
                         <span>-₹{((design.fabric.pricePerMeter || 0) * 1.5).toLocaleString()}</span>
                       </div>
                     )}
                     <Separator />
                     <div className="flex justify-between font-semibold text-lg">
-                      <span>Total:</span>
+                      <span>Total Price:</span>
                       <span className="text-pink-600">{formatPrice(calculatePrice())}</span>
                     </div>
                     {design.fabric?.isOwnFabric && (

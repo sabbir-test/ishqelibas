@@ -30,6 +30,28 @@ export function verifyToken(token: string): JWTPayload | null {
   }
 }
 
+export async function verifyAdminToken(token: string): Promise<JWTPayload | null> {
+  try {
+    const payload = verifyToken(token)
+    if (!payload) {
+      return null
+    }
+
+    // Check if user exists and has admin role
+    const user = await db.user.findUnique({
+      where: { id: payload.userId }
+    })
+
+    if (!user || user.role !== 'ADMIN' || !user.isActive) {
+      return null
+    }
+
+    return payload
+  } catch (error) {
+    return null
+  }
+}
+
 export async function authenticateUser(email: string, password: string) {
   try {
     const user = await db.user.findUnique({

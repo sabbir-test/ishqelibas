@@ -43,6 +43,11 @@ interface Product {
   inStock: boolean
   sizes?: string[]
   colors?: string[]
+  // Front and back design pricing
+  frontDesignName?: string
+  frontDesignPrice?: number
+  backDesignName?: string
+  backDesignPrice?: number
 }
 
 interface Category {

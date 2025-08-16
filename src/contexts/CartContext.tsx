@@ -14,6 +14,14 @@ interface CartItem {
   sku: string
   size?: string
   color?: string
+  // Front and back design pricing
+  frontDesignName?: string
+  frontDesignPrice?: number
+  backDesignName?: string
+  backDesignPrice?: number
+  // Custom design information
+  customDesign?: any
+  isCustomDesign?: boolean
 }
 
 interface CartState {
@@ -150,7 +158,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           image: item.image || '/api/placeholder/300/400',
           sku: item.sku || 'UNKNOWN-SKU',
           size: item.size || undefined,
-          color: item.color || undefined
+          color: item.color || undefined,
+          frontDesignName: item.frontDesignName || undefined,
+          frontDesignPrice: typeof item.frontDesignPrice === 'number' ? item.frontDesignPrice : undefined,
+          backDesignName: item.backDesignName || undefined,
+          backDesignPrice: typeof item.backDesignPrice === 'number' ? item.backDesignPrice : undefined
         }))
         dispatch({ type: "LOAD_CART", payload: sanitizedCart })
       } catch (error) {
@@ -169,12 +181,15 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const addItem = (item: Omit<CartItem, "id">) => {
     dispatch({ type: "ADD_ITEM", payload: item })
     
-    // Build description with size and color if available
+    // Build description with size, color, and design info if available
     let description = `${item.name} has been added to your cart.`
-    if (item.size || item.color) {
-      const options = []
-      if (item.size) options.push(`Size: ${item.size}`)
-      if (item.color) options.push(`Color: ${item.color}`)
+    const options = []
+    if (item.size) options.push(`Size: ${item.size}`)
+    if (item.color) options.push(`Color: ${item.color}`)
+    if (item.frontDesignName) options.push(`Front: ${item.frontDesignName}`)
+    if (item.backDesignName) options.push(`Back: ${item.backDesignName}`)
+    
+    if (options.length > 0) {
       description += ` (${options.join(', ')})`
     }
     

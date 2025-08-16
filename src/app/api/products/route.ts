@@ -156,7 +156,12 @@ export async function GET(request: NextRequest) {
         colors: colors.length > 0 ? colors : undefined,
         rating: 4.5, // Mock rating - in real app, this would come from reviews
         reviewCount: 100, // Mock review count
-        inStock: product.stock > 0
+        inStock: product.stock > 0,
+        // Mock design data for testing - in real app, this would come from related blouse models
+        frontDesignName: "Classic Neck",
+        frontDesignPrice: 1200,
+        backDesignName: "Elegant Back",
+        backDesignPrice: 800
       }
     })
 

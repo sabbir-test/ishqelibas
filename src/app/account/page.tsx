@@ -71,11 +71,7 @@ export default function AccountPage() {
     setIsLoading(true)
     try {
       // Load orders
-      const ordersResponse = await fetch('/api/orders', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      })
+      const ordersResponse = await fetch('/api/orders')
       if (ordersResponse.ok) {
         const ordersData = await ordersResponse.json()
         setOrders(ordersData.orders || [])
@@ -107,8 +103,7 @@ export default function AccountPage() {
       const response = await fetch('/api/auth/update-profile', {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(formData)
       })
@@ -322,7 +317,14 @@ export default function AccountPage() {
               <TabsContent value="orders">
                 <Card>
                   <CardHeader>
-                    <CardTitle>Recent Orders</CardTitle>
+                    <div className="flex items-center justify-between">
+                      <CardTitle>Recent Orders</CardTitle>
+                      <Link href="/orders">
+                        <Button variant="outline">
+                          View All Orders
+                        </Button>
+                      </Link>
+                    </div>
                   </CardHeader>
                   <CardContent>
                     {orders.length === 0 ? (
@@ -353,9 +355,19 @@ export default function AccountPage() {
                               <div className="text-sm text-gray-600">
                                 {order.items} items • <IndianRupee className="inline h-3 w-3" />{order.total}
                               </div>
-                              <Button variant="outline" size="sm">
-                                View Details
-                              </Button>
+                              <div className="flex gap-2">
+                                <Link href={`/orders`}>
+                                  <Button variant="outline" size="sm">
+                                    View Details
+                                  </Button>
+                                </Link>
+                                {['processing', 'shipped'].includes(order.status.toLowerCase()) && (
+                                  <Button variant="outline" size="sm">
+                                    <Truck className="h-3 w-3 mr-1" />
+                                    Track
+                                  </Button>
+                                )}
+                              </div>
                             </div>
                           </div>
                         ))}

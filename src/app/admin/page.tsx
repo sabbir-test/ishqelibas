@@ -182,6 +182,18 @@ export default function AdminDashboard() {
                   Appointments
                 </Button>
               </Link>
+              <Link href="/admin/measurements">
+                <Button variant="outline">
+                  <Ruler className="h-4 w-4 mr-2" />
+                  Measurements
+                </Button>
+              </Link>
+              <Link href="/admin/orders">
+                <Button variant="outline">
+                  <ShoppingCart className="h-4 w-4 mr-2" />
+                  All Orders
+                </Button>
+              </Link>
             </div>
           </div>
         </div>
