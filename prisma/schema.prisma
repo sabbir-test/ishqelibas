@@ -223,6 +223,8 @@ model BlouseDesign {
   categoryId  String?
   category    BlouseDesignCategory? @relation(fields: [categoryId], references: [id])
   variants    BlouseDesignVariant[]
+  frontModels BlouseModel[] @relation("FrontModelDesign")
+  backModels  BlouseModel[] @relation("BackModelDesign")
   
   @@map("blouse_designs")
 }
@@ -256,6 +258,27 @@ model BlouseDesignVariant {
   design      BlouseDesign @relation(fields: [designId], references: [id])
   
   @@map("blouse_design_variants")
+}
+
+model BlouseModel {
+  id          String   @id @default(cuid())
+  name        String
+  image       String?
+  description String?
+  price       Float
+  discount    Float?
+  finalPrice  Float
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  frontDesignId String?
+  frontDesign  BlouseDesign? @relation("FrontModelDesign", fields: [frontDesignId], references: [id])
+  backDesignId  String?
+  backDesign   BlouseDesign? @relation("BackModelDesign", fields: [backDesignId], references: [id])
+  
+  @@map("blouse_models")
 }
 
 // Enums

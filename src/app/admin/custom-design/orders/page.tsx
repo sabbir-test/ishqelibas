@@ -14,7 +14,6 @@ import {
   Calendar,
   User,
   Package,
-  DollarSign,
   TrendingUp,
   Filter
 } from "lucide-react"

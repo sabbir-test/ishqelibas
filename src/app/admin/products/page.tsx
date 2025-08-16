@@ -32,7 +32,6 @@ import {
   Package,
   Image as ImageIcon,
   Tag,
-  DollarSign,
   Box,
   Star
 } from "lucide-react"

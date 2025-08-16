@@ -14,9 +14,38 @@ export async function GET(request: NextRequest) {
 
     const designs = await db.blouseDesign.findMany({
       where,
-      include: {
-        category: true,
+      select: {
+        id: true,
+        name: true,
+        type: true,
+        image: true,
+        description: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+        categoryId: true,
+        category: includeVariants ? {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            image: true,
+            isActive: true,
+            createdAt: true,
+            updatedAt: true
+          }
+        } : true,
         variants: includeVariants ? {
+          select: {
+            id: true,
+            name: true,
+            image: true,
+            description: true,
+            isActive: true,
+            createdAt: true,
+            updatedAt: true,
+            designId: true
+          },
           where: { isActive: true },
           orderBy: { name: "asc" }
         } : false

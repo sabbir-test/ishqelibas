@@ -23,7 +23,9 @@ import {
   Eye,
   ShoppingCart,
   Loader2,
-  DollarSign
+  X,
+  Image as ImageIcon,
+  Tag
 } from "lucide-react"
 import { useCart } from "@/contexts/CartContext"
 import { useToast } from "@/hooks/use-toast"
@@ -84,12 +86,31 @@ interface BlouseDesign {
   variants?: BlouseDesignVariant[]
 }
 
+interface BlouseModel {
+  id: string
+  name: string
+  image?: string
+  description?: string
+  price: number
+  discount?: number
+  finalPrice: number
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+  frontDesign?: BlouseDesign | null
+  backDesign?: BlouseDesign | null
+}
+
 interface CustomDesign {
   fabric: Fabric | null
   frontDesign: BlouseDesign | null
   backDesign: BlouseDesign | null
   frontDesignVariant: BlouseDesignVariant | null
   backDesignVariant: BlouseDesignVariant | null
+  selectedModels: {
+    frontModel: BlouseModel | null
+    backModel: BlouseModel | null
+  }
   measurements: {
     bust: string
     waist: string
@@ -103,7 +124,54 @@ interface CustomDesign {
   ownFabricDetails?: OwnFabricDetails | null
 }
 
+// Simple cache implementation
+const useDataCache = () => {
+  const [cache, setCache] = useState<Record<string, { data: any; timestamp: number }>>({})
+  
+  const CACHE_DURATION = 5 * 60 * 1000 // 5 minutes
+  
+  const get = (key: string) => {
+    const cached = cache[key]
+    if (!cached) return null
+    
+    const isExpired = Date.now() - cached.timestamp > CACHE_DURATION
+    if (isExpired) {
+      // Remove expired cache
+      setCache(prev => {
+        const newCache = { ...prev }
+        delete newCache[key]
+        return newCache
+      })
+      return null
+    }
+    
+    return cached.data
+  }
+  
+  const set = (key: string, data: any) => {
+    setCache(prev => ({
+      ...prev,
+      [key]: { data, timestamp: Date.now() }
+    }))
+  }
+  
+  const clear = (key?: string) => {
+    if (key) {
+      setCache(prev => {
+        const newCache = { ...prev }
+        delete newCache[key]
+        return newCache
+      })
+    } else {
+      setCache({})
+    }
+  }
+  
+  return { get, set, clear }
+}
+
 export default function CustomDesignPage() {
+  const { get: getCache, set: setCache, clear: clearCache } = useDataCache()
   const [currentStep, setCurrentStep] = useState<DesignStep>("fabric")
   const [design, setDesign] = useState<CustomDesign>({
     fabric: null,
@@ -111,6 +179,10 @@ export default function CustomDesignPage() {
     backDesign: null,
     frontDesignVariant: null,
     backDesignVariant: null,
+    selectedModels: {
+      frontModel: null,
+      backModel: null
+    },
     measurements: {
       bust: "",
       waist: "",
@@ -132,7 +204,12 @@ export default function CustomDesignPage() {
   const [fabrics, setFabrics] = useState<Fabric[]>([])
   const [frontDesigns, setFrontDesigns] = useState<BlouseDesign[]>([])
   const [backDesigns, setBackDesigns] = useState<BlouseDesign[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const [models, setModels] = useState<BlouseModel[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [modelsPage, setModelsPage] = useState(1)
+  const [hasMoreModels, setHasMoreModels] = useState(true)
+  const MODES_PER_PAGE = 12
   const [showVariantsModal, setShowVariantsModal] = useState(false)
   const [selectedDesignForVariants, setSelectedDesignForVariants] = useState<BlouseDesign | null>(null)
   const [variantsModalDesignType, setVariantsModalDesignType] = useState<"front" | "back">("front")
@@ -151,28 +228,60 @@ export default function CustomDesignPage() {
   const progress = ((currentStepIndex + 1) / steps.length) * 100
 
   useEffect(() => {
-    fetchFabrics()
-    fetchDesigns()
-  }, [])
+    // Only load data when needed
+    if (currentStep === "fabric") {
+      fetchFabrics()
+    } else if (currentStep === "design") {
+      fetchDesigns()
+      fetchModels()
+    }
+  }, [currentStep])
 
   const fetchFabrics = async () => {
+    // Check cache first
+    const cachedFabrics = getCache('fabrics')
+    if (cachedFabrics) {
+      setFabrics(cachedFabrics)
+      return
+    }
+
+    setIsLoading(true)
+    setError(null)
     try {
       const response = await fetch("/api/fabrics")
       if (response.ok) {
         const data = await response.json()
         setFabrics(data.fabrics)
+        setCache('fabrics', data.fabrics)
+      } else {
+        throw new Error("Failed to fetch fabrics")
       }
     } catch (error) {
       console.error("Error fetching fabrics:", error)
+      setError("Failed to load fabrics. Please try again.")
       toast({
         title: "Error",
         description: "Failed to load fabrics. Please try again.",
         variant: "destructive"
       })
+    } finally {
+      setIsLoading(false)
     }
   }
 
   const fetchDesigns = async () => {
+    // Check cache first
+    const cachedFrontDesigns = getCache('frontDesigns')
+    const cachedBackDesigns = getCache('backDesigns')
+    
+    if (cachedFrontDesigns && cachedBackDesigns) {
+      setFrontDesigns(cachedFrontDesigns)
+      setBackDesigns(cachedBackDesigns)
+      return
+    }
+
+    setIsLoading(true)
+    setError(null)
     try {
       const [frontResponse, backResponse] = await Promise.all([
         fetch("/api/blouse-designs?type=FRONT&includeVariants=true"),
@@ -182,14 +291,21 @@ export default function CustomDesignPage() {
       if (frontResponse.ok) {
         const frontData = await frontResponse.json()
         setFrontDesigns(frontData.designs)
+        setCache('frontDesigns', frontData.designs)
       }
 
       if (backResponse.ok) {
         const backData = await backResponse.json()
         setBackDesigns(backData.designs)
+        setCache('backDesigns', backData.designs)
+      }
+
+      if (!frontResponse.ok || !backResponse.ok) {
+        throw new Error("Failed to fetch designs")
       }
     } catch (error) {
       console.error("Error fetching designs:", error)
+      setError("Failed to load designs. Please try again.")
       toast({
         title: "Error",
         description: "Failed to load designs. Please try again.",
@@ -200,12 +316,85 @@ export default function CustomDesignPage() {
     }
   }
 
-  if (isLoading && (currentStep === "fabric" || currentStep === "design")) {
+  const fetchModels = async (page = 1, append = false) => {
+    // Check cache first
+    const cacheKey = `models-page-${page}`
+    const cachedModels = getCache(cacheKey)
+    if (cachedModels) {
+      if (append) {
+        setModels(prev => [...prev, ...cachedModels])
+      } else {
+        setModels(cachedModels)
+      }
+      setHasMoreModels(cachedModels.length >= MODES_PER_PAGE)
+      return
+    }
+
+    setIsLoading(true)
+    setError(null)
+    try {
+      const response = await fetch(`/api/blouse-models?includeDesigns=true&page=${page}&limit=${MODES_PER_PAGE}`)
+      if (response.ok) {
+        const data = await response.json()
+        const newModels = data.models
+        
+        if (append) {
+          setModels(prev => [...prev, ...newModels])
+        } else {
+          setModels(newModels)
+        }
+        
+        setCache(cacheKey, newModels)
+        setHasMoreModels(data.pagination?.hasMore || newModels.length >= MODES_PER_PAGE)
+      } else {
+        throw new Error("Failed to fetch models")
+      }
+    } catch (error) {
+      console.error("Error fetching models:", error)
+      setError("Failed to load models. Please try again.")
+      toast({
+        title: "Error",
+        description: "Failed to load models. Please try again.",
+        variant: "destructive"
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const loadMoreModels = () => {
+    if (!isLoading && hasMoreModels) {
+      const nextPage = modelsPage + 1
+      setModelsPage(nextPage)
+      fetchModels(nextPage, true)
+    }
+  }
+
+  // Loading state based on current step
+  const isLoadingData = (isLoading || (currentStep === "fabric" && fabrics.length === 0) || 
+                        (currentStep === "design" && (frontDesigns.length === 0 || backDesigns.length === 0 || models.length === 0)))
+
+  if (isLoadingData) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="h-12 w-12 animate-spin text-pink-600 mx-auto mb-4" />
           <p className="text-gray-600">Loading design options...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center max-w-md">
+          <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Error Loading Data</h2>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <Button onClick={() => window.location.reload()}>
+            Retry
+          </Button>
         </div>
       </div>
     )
@@ -222,9 +411,13 @@ export default function CustomDesignPage() {
       basePrice += design.fabric.pricePerMeter * 1.5
     }
     
-    // Add design complexity cost
-    if (design.frontDesign) basePrice += 300
-    if (design.backDesign) basePrice += 300
+    // Add model costs
+    if (design.selectedModels.frontModel) {
+      basePrice += design.selectedModels.frontModel.finalPrice
+    }
+    if (design.selectedModels.backModel) {
+      basePrice += design.selectedModels.backModel.finalPrice
+    }
     
     return basePrice
   }
@@ -281,6 +474,48 @@ export default function CustomDesignPage() {
     setDesign(prev => ({ ...prev, appointmentDate: date }))
   }
 
+  const handleModelSelect = (model: BlouseModel, designType: "front" | "back") => {
+    setDesign(prev => ({
+      ...prev,
+      selectedModels: {
+        ...prev.selectedModels,
+        [designType + "Model"]: model
+      }
+    }))
+
+    toast({
+      title: "Model Selected",
+      description: `${model.name} selected as ${designType} design`
+    })
+  }
+
+  const handleModelDeselect = (designType: "front" | "back") => {
+    setDesign(prev => ({
+      ...prev,
+      selectedModels: {
+        ...prev.selectedModels,
+        [designType + "Model"]: null
+      }
+    }))
+
+    toast({
+      title: "Model Deselected",
+      description: `${designType} design removed`
+    })
+  }
+
+  const proceedToMeasurements = () => {
+    if (!design.selectedModels.frontModel && !design.selectedModels.backModel) {
+      toast({
+        title: "Selection Required",
+        description: "Please select at least one model to continue",
+        variant: "destructive"
+      })
+      return
+    }
+    setCurrentStep("measurements")
+  }
+
   const validateMeasurements = () => {
     const { measurements } = design
     return Object.values(measurements).every(value => value.trim() !== "")
@@ -322,6 +557,10 @@ export default function CustomDesignPage() {
         backDesign: null,
         frontDesignVariant: null,
         backDesignVariant: null,
+        selectedModels: {
+          frontModel: null,
+          backModel: null
+        },
         measurements: {
           bust: "",
           waist: "",
@@ -485,6 +724,17 @@ export default function CustomDesignPage() {
                         ))}
                       </div>
                     )}
+                    {design.fabric && !design.fabric.isOwnFabric && (
+                      <div className="mt-6 pt-4 border-t">
+                        <Button 
+                          onClick={() => setCurrentStep("design")}
+                          className="w-full bg-pink-600 hover:bg-pink-700"
+                        >
+                          Continue to Design Selection
+                          <ArrowRight className="h-4 w-4 ml-2" />
+                        </Button>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
 
@@ -622,215 +872,225 @@ export default function CustomDesignPage() {
         {currentStep === "design" && (
           <div className="space-y-8">
             <div className="text-center mb-8">
-              <h2 className="text-2xl font-bold mb-2">Select Your Design</h2>
-              <p className="text-gray-600">Choose front and back designs for your blouse</p>
+              <h2 className="text-2xl font-bold mb-2">Select Your Models</h2>
+              <p className="text-gray-600">Choose front and back models for your custom blouse</p>
             </div>
 
-            {/* Front Designs */}
-            <div>
-              <h3 className="text-xl font-semibold mb-4">Front Design</h3>
-              {frontDesigns.length === 0 ? (
-                <div className="text-center py-8 bg-gray-50 rounded-lg">
-                  <AlertCircle className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                  <p className="text-gray-600">No front designs available.</p>
+            {/* Selection Summary */}
+            {(design.selectedModels.frontModel || design.selectedModels.backModel) && (
+              <div className="bg-pink-50 border-b border-pink-200 rounded-lg p-4 mb-6">
+                <div className="flex flex-wrap items-center gap-4">
+                  <span className="text-sm font-medium text-pink-800">Selected Models:</span>
+                  
+                  {design.selectedModels.frontModel && (
+                    <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-300">
+                      Front: {design.selectedModels.frontModel.name} - {formatPrice(design.selectedModels.frontModel.finalPrice)}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-auto p-0 ml-2 hover:bg-transparent"
+                        onClick={() => handleModelDeselect("front")}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </Badge>
+                  )}
+                  
+                  {design.selectedModels.backModel && (
+                    <Badge variant="secondary" className="bg-blue-100 text-blue-800 border-blue-300">
+                      Back: {design.selectedModels.backModel.name} - {formatPrice(design.selectedModels.backModel.finalPrice)}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-auto p-0 ml-2 hover:bg-transparent"
+                        onClick={() => handleModelDeselect("back")}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </Badge>
+                  )}
+                  
+                  {(design.selectedModels.frontModel || design.selectedModels.backModel) && (
+                    <div className="ml-auto">
+                      <span className="text-sm font-medium text-pink-800">
+                        Total: {formatPrice(
+                          (design.selectedModels.frontModel?.finalPrice || 0) + 
+                          (design.selectedModels.backModel?.finalPrice || 0)
+                        )}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Models Grid */}
+            <div className="space-y-6">
+              {models.length === 0 ? (
+                <div className="text-center py-12">
+                  <ImageIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No models available</h3>
+                  <p className="text-gray-600">Please check back later for available models.</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {frontDesigns.map((designOption) => (
-                    <Card 
-                      key={designOption.id} 
-                      className={`overflow-hidden cursor-pointer transition-all duration-200 hover:shadow-lg ${
-                        design.frontDesign?.id === designOption.id 
-                          ? "ring-2 ring-pink-600 bg-pink-50" 
-                          : "border-gray-200 hover:border-pink-300"
-                      }`}
-                      onClick={() => handleDesignSelect("front", designOption)}
-                    >
-                      <div className="aspect-[4/3] bg-gray-100 relative overflow-hidden">
-                        {designOption.image ? (
-                          <img 
-                            src={designOption.image} 
-                            alt={designOption.name}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <Scissors className="h-16 w-16 text-gray-400" />
-                          </div>
-                        )}
-                        {design.frontDesign?.id === designOption.id && (
-                          <div className="absolute top-2 right-2 bg-pink-600 text-white rounded-full p-1">
-                            <CheckCircle className="h-5 w-5" />
-                          </div>
-                        )}
-                        {designOption.variants && designOption.variants.length > 0 && (
-                          <div className="absolute bottom-2 left-2 bg-black bg-opacity-60 text-white text-xs px-2 py-1 rounded">
-                            {designOption.variants.length} styles
-                          </div>
-                        )}
-                      </div>
-                      
-                      <CardContent className="p-4">
-                        <div className="space-y-2">
-                          <CardTitle className="text-lg">{designOption.name}</CardTitle>
-                          
-                          {designOption.category && (
-                            <Badge variant="outline" className="w-fit">
-                              {designOption.category.name}
-                            </Badge>
-                          )}
-                          
-                          {designOption.description && (
-                            <CardDescription className="text-sm">
-                              {designOption.description}
-                            </CardDescription>
-                          )}
-                          
-                          {designOption.variants && designOption.variants.length > 0 && (
-                            <div className="flex items-center space-x-2 mt-3">
-                              <div className="flex -space-x-2">
-                                {designOption.variants.slice(0, 3).map((variant, index) => (
-                                  <div 
-                                    key={variant.id}
-                                    className="w-8 h-8 bg-gray-200 rounded border-2 border-white overflow-hidden"
-                                  >
-                                    {variant.image ? (
-                                      <img 
-                                        src={variant.image} 
-                                        alt={variant.name}
-                                        className="w-full h-full object-cover"
-                                      />
-                                    ) : (
-                                      <div className="w-full h-full flex items-center justify-center">
-                                        <Scissors className="h-4 w-4 text-gray-400" />
-                                      </div>
-                                    )}
-                                  </div>
-                                ))}
-                                {designOption.variants.length > 3 && (
-                                  <div className="w-8 h-8 bg-gray-300 rounded border-2 border-white flex items-center justify-center text-xs font-medium">
-                                    +{designOption.variants.length - 3}
-                                  </div>
-                                )}
+                  {models.map((model) => {
+                    const isSelectedAsFront = design.selectedModels.frontModel?.id === model.id
+                    const isSelectedAsBack = design.selectedModels.backModel?.id === model.id
+                    const canSelectFront = !design.selectedModels.frontModel && model.frontDesign
+                    const canSelectBack = !design.selectedModels.backModel && model.backDesign
+
+                    return (
+                      <Card key={model.id} className="overflow-hidden hover:shadow-lg transition-shadow duration-200">
+                        <CardHeader className="pb-3">
+                          <div className="relative">
+                            {model.image ? (
+                              <div className="w-full h-48 bg-gray-100 rounded-lg overflow-hidden">
+                                <img
+                                  src={model.image}
+                                  alt={model.name}
+                                  className="w-full h-full object-cover"
+                                />
                               </div>
-                              <span className="text-sm text-gray-600">
-                                Click to view styles
-                              </span>
+                            ) : (
+                              <div className="w-full h-48 bg-gradient-to-br from-pink-100 to-purple-100 rounded-lg flex items-center justify-center">
+                                <ImageIcon className="h-12 w-12 text-pink-400" />
+                              </div>
+                            )}
+                            
+                            {/* Selection Indicators */}
+                            <div className="absolute top-2 right-2 flex flex-col gap-1">
+                              {isSelectedAsFront && (
+                                <Badge className="bg-green-500 text-white">
+                                  Front Selected
+                                </Badge>
+                              )}
+                              {isSelectedAsBack && (
+                                <Badge className="bg-blue-500 text-white">
+                                  Back Selected
+                                </Badge>
+                              )}
                             </div>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+
+                            {/* Discount Badge */}
+                            {model.discount && (
+                              <Badge className="absolute top-2 left-2 bg-red-500 text-white">
+                                {model.discount}% OFF
+                              </Badge>
+                            )}
+                          </div>
+                        </CardHeader>
+
+                        <CardContent className="space-y-3">
+                          <div>
+                            <CardTitle className="text-lg mb-1">{model.name}</CardTitle>
+                            {model.description && (
+                              <p className="text-sm text-gray-600 line-clamp-2">{model.description}</p>
+                            )}
+                          </div>
+
+                          {/* Design Information */}
+                          <div className="space-y-2">
+                            {model.frontDesign && (
+                              <div className="flex items-center gap-2 text-sm">
+                                <Tag className="h-3 w-3 text-green-600" />
+                                <span className="text-green-600 font-medium">Front:</span>
+                                <span className="text-gray-600">{model.frontDesign.name}</span>
+                              </div>
+                            )}
+                            {model.backDesign && (
+                              <div className="flex items-center gap-2 text-sm">
+                                <Tag className="h-3 w-3 text-blue-600" />
+                                <span className="text-blue-600 font-medium">Back:</span>
+                                <span className="text-gray-600">{model.backDesign.name}</span>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Price */}
+                          <div className="flex items-center justify-between">
+                            <div>
+                              {model.discount ? (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-lg font-bold text-pink-600">
+                                    {formatPrice(model.finalPrice)}
+                                  </span>
+                                  <span className="text-sm text-gray-500 line-through">
+                                    {formatPrice(model.price)}
+                                  </span>
+                                </div>
+                              ) : (
+                                <span className="text-lg font-bold text-pink-600">
+                                  {formatPrice(model.finalPrice)}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Action Buttons */}
+                          <div className="space-y-2">
+                            {canSelectFront && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="w-full border-green-500 text-green-600 hover:bg-green-50"
+                                onClick={() => handleModelSelect(model, "front")}
+                              >
+                                <CheckCircle className="h-4 w-4 mr-2" />
+                                Select as Front Design
+                              </Button>
+                            )}
+                            
+                            {canSelectBack && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="w-full border-blue-500 text-blue-600 hover:bg-blue-50"
+                                onClick={() => handleModelSelect(model, "back")}
+                              >
+                                <CheckCircle className="h-4 w-4 mr-2" />
+                                Select as Back Design
+                              </Button>
+                            )}
+
+                            {isSelectedAsFront && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="w-full border-gray-500 text-gray-600 hover:bg-gray-50"
+                                onClick={() => handleModelDeselect("front")}
+                              >
+                                <X className="h-4 w-4 mr-2" />
+                                Remove Front Selection
+                              </Button>
+                            )}
+
+                            {isSelectedAsBack && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="w-full border-gray-500 text-gray-600 hover:bg-gray-50"
+                                onClick={() => handleModelDeselect("back")}
+                              >
+                                <X className="h-4 w-4 mr-2" />
+                                Remove Back Selection
+                              </Button>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )
+                  })}
                 </div>
               )}
             </div>
 
-            {/* Back Designs */}
-            <div>
-              <h3 className="text-xl font-semibold mb-4">Back Design</h3>
-              {backDesigns.length === 0 ? (
-                <div className="text-center py-8 bg-gray-50 rounded-lg">
-                  <AlertCircle className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                  <p className="text-gray-600">No back designs available.</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {backDesigns.map((designOption) => (
-                    <Card 
-                      key={designOption.id} 
-                      className={`overflow-hidden cursor-pointer transition-all duration-200 hover:shadow-lg ${
-                        design.backDesign?.id === designOption.id 
-                          ? "ring-2 ring-pink-600 bg-pink-50" 
-                          : "border-gray-200 hover:border-pink-300"
-                      }`}
-                      onClick={() => handleDesignSelect("back", designOption)}
-                    >
-                      <div className="aspect-[4/3] bg-gray-100 relative overflow-hidden">
-                        {designOption.image ? (
-                          <img 
-                            src={designOption.image} 
-                            alt={designOption.name}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <Scissors className="h-16 w-16 text-gray-400" />
-                          </div>
-                        )}
-                        {design.backDesign?.id === designOption.id && (
-                          <div className="absolute top-2 right-2 bg-pink-600 text-white rounded-full p-1">
-                            <CheckCircle className="h-5 w-5" />
-                          </div>
-                        )}
-                        {designOption.variants && designOption.variants.length > 0 && (
-                          <div className="absolute bottom-2 left-2 bg-black bg-opacity-60 text-white text-xs px-2 py-1 rounded">
-                            {designOption.variants.length} styles
-                          </div>
-                        )}
-                      </div>
-                      
-                      <CardContent className="p-4">
-                        <div className="space-y-2">
-                          <CardTitle className="text-lg">{designOption.name}</CardTitle>
-                          
-                          {designOption.category && (
-                            <Badge variant="outline" className="w-fit">
-                              {designOption.category.name}
-                            </Badge>
-                          )}
-                          
-                          {designOption.description && (
-                            <CardDescription className="text-sm">
-                              {designOption.description}
-                            </CardDescription>
-                          )}
-                          
-                          {designOption.variants && designOption.variants.length > 0 && (
-                            <div className="flex items-center space-x-2 mt-3">
-                              <div className="flex -space-x-2">
-                                {designOption.variants.slice(0, 3).map((variant, index) => (
-                                  <div 
-                                    key={variant.id}
-                                    className="w-8 h-8 bg-gray-200 rounded border-2 border-white overflow-hidden"
-                                  >
-                                    {variant.image ? (
-                                      <img 
-                                        src={variant.image} 
-                                        alt={variant.name}
-                                        className="w-full h-full object-cover"
-                                      />
-                                    ) : (
-                                      <div className="w-full h-full flex items-center justify-center">
-                                        <Scissors className="h-4 w-4 text-gray-400" />
-                                      </div>
-                                    )}
-                                  </div>
-                                ))}
-                                {designOption.variants.length > 3 && (
-                                  <div className="w-8 h-8 bg-gray-300 rounded border-2 border-white flex items-center justify-center text-xs font-medium">
-                                    +{designOption.variants.length - 3}
-                                  </div>
-                                )}
-                              </div>
-                              <span className="text-sm text-gray-600">
-                                Click to view styles
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </div>
-
+            {/* Continue Button */}
             <div className="flex justify-center">
               <Button 
-                onClick={() => setCurrentStep("measurements")}
+                onClick={proceedToMeasurements}
                 className="bg-pink-600 hover:bg-pink-700"
-                disabled={!design.frontDesign && !design.backDesign}
+                disabled={!design.selectedModels.frontModel && !design.selectedModels.backModel}
               >
                 Continue to Measurements
                 <ArrowRight className="h-4 w-4 ml-2" />
@@ -1156,7 +1416,7 @@ export default function CustomDesignPage() {
               <Card className="lg:col-span-2">
                 <CardHeader>
                   <CardTitle className="flex items-center">
-                    <DollarSign className="h-5 w-5 mr-2" />
+                    <span className="text-lg font-bold mr-2">₹</span>
                     Price Summary
                   </CardTitle>
                 </CardHeader>

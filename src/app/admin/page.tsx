@@ -9,7 +9,6 @@ import {
   Users, 
   ShoppingCart, 
   Package, 
-  DollarSign,
   TrendingUp,
   TrendingDown,
   Eye,
@@ -21,7 +20,8 @@ import {
   Scissors,
   Palette,
   Ruler,
-  Calendar
+  Calendar,
+  User
 } from "lucide-react"
 import Link from "next/link"
 
@@ -164,6 +164,12 @@ export default function AdminDashboard() {
                   Blouse Designs
                 </Button>
               </Link>
+              <Link href="/admin/custom-design/models">
+                <Button variant="outline">
+                  <User className="h-4 w-4 mr-2" />
+                  Blouse Models
+                </Button>
+              </Link>
               <Link href="/admin/custom-design/orders">
                 <Button variant="outline">
                   <Ruler className="h-4 w-4 mr-2" />
@@ -197,7 +203,7 @@ export default function AdminDashboard() {
                   </div>
                 </div>
                 <div className="h-12 w-12 bg-green-100 rounded-lg flex items-center justify-center">
-                  <DollarSign className="h-6 w-6 text-green-600" />
+                  <span className="text-green-600 font-bold text-xl">₹</span>
                 </div>
               </div>
             </CardContent>

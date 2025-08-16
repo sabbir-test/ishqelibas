@@ -28,11 +28,6 @@ async function createCustomServer() {
       if (req.url?.startsWith('/api/socketio')) {
         return;
       }
-      
-      // Set proper headers for Next.js
-      res.setHeader('x-matched-path', req.url || '/');
-      res.setHeader('x-nextjs-data', '1');
-      
       handle(req, res);
     });
 

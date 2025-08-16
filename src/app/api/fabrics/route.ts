@@ -5,6 +5,17 @@ export async function GET(request: NextRequest) {
   try {
     const fabrics = await db.fabric.findMany({
       where: { isActive: true },
+      select: {
+        id: true,
+        name: true,
+        type: true,
+        color: true,
+        pricePerMeter: true,
+        image: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true
+      },
       orderBy: { name: "asc" }
     })
 
