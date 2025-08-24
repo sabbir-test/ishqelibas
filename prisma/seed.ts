@@ -199,74 +199,86 @@ async function main() {
         name: 'Classic Round Neck',
         type: 'FRONT',
         description: 'Traditional round neck design with simple elegance',
-        image: '/api/placeholder/200/200'
+        image: '/api/placeholder/200/200',
+        stitchCost: 299
       },
       {
         name: 'Elegant V-Neck',
         type: 'FRONT',
         description: 'Sophisticated V-neck design for graceful look',
-        image: '/api/placeholder/200/200'
+        image: '/api/placeholder/200/200',
+        stitchCost: 349
       },
       {
         name: 'Sweetheart Neck',
         type: 'FRONT',
         description: 'Romantic sweetheart neckline for special occasions',
-        image: '/api/placeholder/200/200'
+        image: '/api/placeholder/200/200',
+        stitchCost: 399
       },
       {
         name: 'Boat Neck',
         type: 'FRONT',
         description: 'Wide boat neck design for modern appeal',
-        image: '/api/placeholder/200/200'
+        image: '/api/placeholder/200/200',
+        stitchCost: 329
       },
       {
         name: 'Square Neck',
         type: 'FRONT',
         description: 'Classic square neck with contemporary style',
-        image: '/api/placeholder/200/200'
+        image: '/api/placeholder/200/200',
+        stitchCost: 359
       },
       {
         name: 'Halter Neck',
         type: 'FRONT',
         description: 'Trendy halter neck for bold fashion statement',
-        image: '/api/placeholder/200/200'
+        image: '/api/placeholder/200/200',
+        stitchCost: 429
       },
       // Back designs
       {
         name: 'Plain Back',
         type: 'BACK',
         description: 'Simple and elegant plain back design',
-        image: '/api/placeholder/200/200'
+        image: '/api/placeholder/200/200',
+        stitchCost: 199
       },
       {
         name: 'Deep Cut Back',
         type: 'BACK',
         description: 'Elegant deep cut back for glamorous look',
-        image: '/api/placeholder/200/200'
+        image: '/api/placeholder/200/200',
+        stitchCost: 279
       },
       {
         name: 'Keyhole Back',
         type: 'BACK',
         description: 'Stylish keyhole back design with modern appeal',
-        image: '/api/placeholder/200/200'
+        image: '/api/placeholder/200/200',
+        stitchCost: 319
       },
       {
         name: 'Criss Cross Back',
         type: 'BACK',
         description: 'Modern criss-cross back pattern',
-        image: '/api/placeholder/200/200'
+        image: '/api/placeholder/200/200',
+        stitchCost: 359
       },
       {
         name: 'Tie-Up Back',
         type: 'BACK',
         description: 'Charming tie-up back with adjustable fit',
-        image: '/api/placeholder/200/200'
+        image: '/api/placeholder/200/200',
+        stitchCost: 299
       },
       {
         name: 'Lace Back',
         type: 'BACK',
         description: 'Delicate lace back for feminine touch',
-        image: '/api/placeholder/200/200'
+        image: '/api/placeholder/200/200',
+        stitchCost: 389
       }
     ]
   })

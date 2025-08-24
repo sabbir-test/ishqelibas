@@ -107,59 +107,38 @@ export default function CartDrawer() {
                             </div>
                           )}
                           
-                          {/* Design Pricing for Regular Products */}
-                          {!item.isCustomDesign && (item.frontDesignName || item.backDesignName) && (
-                            <div className="mb-2 p-2 bg-gray-50 rounded text-xs">
-                              <div className="font-medium mb-1">Design Details:</div>
-                              {item.frontDesignName && (
-                                <div className="flex justify-between">
-                                  <span>Front: {item.frontDesignName}</span>
-                                  <span className="font-medium">₹{item.frontDesignPrice}</span>
+                          {/* Custom Design Details */}
+                          {item.productId === "custom-blouse" && item.customDesign && (
+                            <div className="mb-2 p-2 bg-gray-50 rounded-md">
+                              <div className="text-xs font-medium text-gray-700 mb-1">Custom Design Details:</div>
+                              {item.customDesign.fabric && (
+                                <div className="text-xs text-gray-600 mb-1">
+                                  Fabric: <span className="font-medium">{item.customDesign.fabric.name}</span>
                                 </div>
                               )}
-                              {item.backDesignName && (
-                                <div className="flex justify-between">
-                                  <span>Back: {item.backDesignName}</span>
-                                  <span className="font-medium">₹{item.backDesignPrice}</span>
+                              {item.customDesign.frontDesign && (
+                                <div className="text-xs text-gray-600 mb-1">
+                                  Front Design: <span className="font-medium">{item.customDesign.frontDesign.name}</span>
                                 </div>
                               )}
-                            </div>
-                          )}
-                          
-                          {/* Custom Design Price Breakdown */}
-                          {item.isCustomDesign && item.customDesign && (
-                            <div className="mb-2 p-2 bg-blue-50 rounded text-xs">
-                              <div className="font-medium mb-1 text-blue-800">Custom Design Breakdown:</div>
-                              
-                              {/* Fabric Cost */}
-                              {!item.customDesign.fabric?.isOwnFabric && item.customDesign.fabric && (
-                                <div className="flex justify-between">
-                                  <span>Fabric ({item.customDesign.fabric.name}):</span>
-                                  <span className="font-medium">₹{(item.customDesign.fabric.pricePerMeter * 1.5).toLocaleString()}</span>
+                              {item.customDesign.backDesign && (
+                                <div className="text-xs text-gray-600 mb-1">
+                                  Back Design: <span className="font-medium">{item.customDesign.backDesign.name}</span>
                                 </div>
                               )}
-                              
-                              {/* Front Model Price */}
                               {item.customDesign.selectedModels?.frontModel && (
-                                <div className="flex justify-between">
-                                  <span>Front Model ({item.customDesign.selectedModels.frontModel.name}):</span>
-                                  <span className="font-medium">₹{item.customDesign.selectedModels.frontModel.finalPrice.toLocaleString()}</span>
+                                <div className="text-xs text-gray-600 mb-1">
+                                  Front Model: <span className="font-medium">{item.customDesign.selectedModels.frontModel.name}</span>
                                 </div>
                               )}
-                              
-                              {/* Back Model Price */}
                               {item.customDesign.selectedModels?.backModel && (
-                                <div className="flex justify-between">
-                                  <span>Back Model ({item.customDesign.selectedModels.backModel.name}):</span>
-                                  <span className="font-medium">₹{item.customDesign.selectedModels.backModel.finalPrice.toLocaleString()}</span>
+                                <div className="text-xs text-gray-600 mb-1">
+                                  Back Model: <span className="font-medium">{item.customDesign.selectedModels.backModel.name}</span>
                                 </div>
                               )}
-                              
-                              {/* Own Fabric Note */}
-                              {item.customDesign.fabric?.isOwnFabric && (
-                                <div className="flex justify-between text-green-600 mt-1">
-                                  <span>Customer's own fabric:</span>
-                                  <span className="font-medium">No cost</span>
+                              {item.customDesign.ownFabricDetails && item.customDesign.ownFabricDetails.name && (
+                                <div className="text-xs text-gray-600 mb-1">
+                                  Customer's Fabric: <span className="font-medium">{item.customDesign.ownFabricDetails.name}</span>
                                 </div>
                               )}
                             </div>
@@ -216,6 +195,17 @@ export default function CartDrawer() {
                                 className="h-8 w-8 text-pink-500 hover:text-pink-700"
                               >
                                 <Heart className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 px-3 text-xs bg-green-600 hover:bg-green-700 text-white"
+                                onClick={toggleCart}
+                                asChild
+                              >
+                                <Link href={`/checkout?itemId=${item.id}`}>
+                                  Buy Now
+                                </Link>
                               </Button>
                             </div>
                           </div>

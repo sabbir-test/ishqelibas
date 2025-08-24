@@ -78,6 +78,7 @@ export async function GET(request: NextRequest) {
               type: true,
               image: true,
               description: true,
+              stitchCost: true,
               categoryId: true,
               category: {
                 select: {
@@ -99,6 +100,7 @@ export async function GET(request: NextRequest) {
               type: true,
               image: true,
               description: true,
+              stitchCost: true,
               categoryId: true,
               category: {
                 select: {

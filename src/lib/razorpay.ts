@@ -37,7 +37,13 @@ export async function createRazorpayOrder(options: CreateOrderOptions): Promise<
       notes: options.notes || {},
     })
 
-    return order
+    // Convert amount to number as Razorpay returns it as string
+    return {
+      ...order,
+      amount: Number(order.amount),
+      amount_paid: Number(order.amount_paid),
+      amount_due: Number(order.amount_due),
+    } as RazorpayOrder
   } catch (error) {
     console.error("Error creating Razorpay order:", error)
     throw new Error("Failed to create Razorpay order")

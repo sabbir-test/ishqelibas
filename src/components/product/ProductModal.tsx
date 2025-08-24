@@ -22,13 +22,8 @@ interface Product {
   rating: number
   reviewCount: number
   inStock: boolean
-  sizes?: string[]
-  colors?: string[]
-  // Front and back design pricing
-  frontDesignName?: string
-  frontDesignPrice?: number
-  backDesignName?: string
-  backDesignPrice?: number
+  sizes?: string
+  colors?: string
 }
 
 interface ProductModalProps {
@@ -123,11 +118,7 @@ export default function ProductModal({ product, isOpen, onClose }: ProductModalP
         sku: product.sku,
         quantity,
         size: selectedSize || undefined,
-        color: selectedColor || undefined,
-        frontDesignName: product.frontDesignName,
-        frontDesignPrice: product.frontDesignPrice,
-        backDesignName: product.backDesignName,
-        backDesignPrice: product.backDesignPrice
+        color: selectedColor || undefined
       })
       
       // Reset selections and close modal
@@ -232,31 +223,6 @@ export default function ProductModal({ product, isOpen, onClose }: ProductModalP
                   </div>
                 )}
               </div>
-              
-              {/* Design Pricing Breakdown */}
-              {(product.frontDesignName || product.backDesignName) && (
-                <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-                  <h4 className="font-medium text-sm mb-2">Design Pricing Breakdown:</h4>
-                  <div className="space-y-1 text-sm">
-                    {product.frontDesignName && (
-                      <div className="flex justify-between">
-                        <span>Front Design ({product.frontDesignName}):</span>
-                        <span className="font-medium">₹{product.frontDesignPrice}</span>
-                      </div>
-                    )}
-                    {product.backDesignName && (
-                      <div className="flex justify-between">
-                        <span>Back Design ({product.backDesignName}):</span>
-                        <span className="font-medium">₹{product.backDesignPrice}</span>
-                      </div>
-                    )}
-                    <div className="flex justify-between pt-1 border-t border-gray-200 font-medium">
-                      <span>Total Design Price:</span>
-                      <span>₹{(product.frontDesignPrice || 0) + (product.backDesignPrice || 0)}</span>
-                    </div>
-                  </div>
-                </div>
-              )}
               
               <div className="flex items-center gap-2">
                 <div className="flex items-center">

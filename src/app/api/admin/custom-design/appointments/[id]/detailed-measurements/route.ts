@@ -1,43 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 
-export async function GET(request: NextRequest) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
-    const { searchParams } = new URL(request.url)
-    const userId = searchParams.get('userId')
-    const search = searchParams.get('search')
-
-    // Build where clause for filtering
-    const whereClause: any = {}
-    
-    if (userId) {
-      whereClause.userId = userId
-    }
-    
-    if (search) {
-      whereClause.OR = [
-        {
-          user: {
-            name: {
-              contains: search,
-              mode: 'insensitive'
-            }
-          }
-        },
-        {
-          user: {
-            email: {
-              contains: search,
-              mode: 'insensitive'
-            }
-          }
-        }
-      ]
-    }
-
-    // Get measurements with user information
+    // Get detailed measurements for the appointment
     const measurements = await db.measurement.findMany({
-      where: whereClause,
+      where: { 
+        OR: [
+          { customOrderId: params.id },
+          { 
+            customOrder: { 
+              userId: params.id 
+            } 
+          }
+        ]
+      },
       include: {
         user: {
           select: {
@@ -46,18 +26,9 @@ export async function GET(request: NextRequest) {
             email: true,
             phone: true
           }
-        },
-        customOrder: {
-          select: {
-            id: true,
-            appointmentDate: true,
-            status: true
-          }
         }
       },
-      orderBy: {
-        createdAt: 'desc'
-      }
+      orderBy: { createdAt: 'desc' }
     })
 
     return NextResponse.json(measurements)
@@ -70,7 +41,10 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
     const body = await request.json()
     const {
@@ -91,17 +65,11 @@ export async function POST(request: NextRequest) {
       notes
     } = body
 
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'User ID is required' },
-        { status: 400 }
-      )
-    }
-
-    // Create new measurement record linked to user
+    // Create new detailed measurement record
     const measurement = await db.measurement.create({
       data: {
-        userId,
+        customOrderId: params.id,
+        userId: userId || null,
         blouseBackLength: blouseBackLength ? parseFloat(blouseBackLength) : null,
         fullShoulder: fullShoulder ? parseFloat(fullShoulder) : null,
         shoulderStrap: shoulderStrap ? parseFloat(shoulderStrap) : null,

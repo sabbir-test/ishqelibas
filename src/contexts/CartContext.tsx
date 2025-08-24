@@ -14,14 +14,7 @@ interface CartItem {
   sku: string
   size?: string
   color?: string
-  // Front and back design pricing
-  frontDesignName?: string
-  frontDesignPrice?: number
-  backDesignName?: string
-  backDesignPrice?: number
-  // Custom design information
-  customDesign?: any
-  isCustomDesign?: boolean
+  customDesign?: any // For custom blouse designs
 }
 
 interface CartState {
@@ -53,7 +46,16 @@ const CartContext = createContext<CartContextType | undefined>(undefined)
 function cartReducer(state: CartState, action: CartAction): CartState {
   switch (action.type) {
     case "ADD_ITEM": {
-      // Check for existing item with same product ID, size, and color
+      // For custom design items (productId === "custom-blouse"), each item is unique
+      if (action.payload.productId === "custom-blouse" && action.payload.customDesign) {
+        const newItem: CartItem = {
+          ...action.payload,
+          id: `custom-${Date.now()}-${Math.random()}`
+        }
+        return calculateTotals({ ...state, items: [...state.items, newItem] })
+      }
+      
+      // For regular products, check for existing item with same product ID, size, and color
       const existingItem = state.items.find(item => 
         item.productId === action.payload.productId &&
         item.size === action.payload.size &&
@@ -159,10 +161,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           sku: item.sku || 'UNKNOWN-SKU',
           size: item.size || undefined,
           color: item.color || undefined,
-          frontDesignName: item.frontDesignName || undefined,
-          frontDesignPrice: typeof item.frontDesignPrice === 'number' ? item.frontDesignPrice : undefined,
-          backDesignName: item.backDesignName || undefined,
-          backDesignPrice: typeof item.backDesignPrice === 'number' ? item.backDesignPrice : undefined
+          customDesign: item.customDesign || undefined
         }))
         dispatch({ type: "LOAD_CART", payload: sanitizedCart })
       } catch (error) {
@@ -181,15 +180,29 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const addItem = (item: Omit<CartItem, "id">) => {
     dispatch({ type: "ADD_ITEM", payload: item })
     
-    // Build description with size, color, and design info if available
+    // Build description with customization details
     let description = `${item.name} has been added to your cart.`
-    const options = []
-    if (item.size) options.push(`Size: ${item.size}`)
-    if (item.color) options.push(`Color: ${item.color}`)
-    if (item.frontDesignName) options.push(`Front: ${item.frontDesignName}`)
-    if (item.backDesignName) options.push(`Back: ${item.backDesignName}`)
     
-    if (options.length > 0) {
+    if (item.productId === "custom-blouse" && item.customDesign) {
+      // For custom blouses, add more specific details
+      const customDetails = []
+      if (item.customDesign.fabric) {
+        customDetails.push(`Fabric: ${item.customDesign.fabric.name}`)
+      }
+      if (item.customDesign.frontDesign) {
+        customDetails.push(`Front Design: ${item.customDesign.frontDesign.name}`)
+      }
+      if (item.customDesign.backDesign) {
+        customDetails.push(`Back Design: ${item.customDesign.backDesign.name}`)
+      }
+      if (customDetails.length > 0) {
+        description += ` (${customDetails.join(', ')})`
+      }
+    } else if (item.size || item.color) {
+      // For regular products, show size and color
+      const options: string[] = []
+      if (item.size) options.push(`Size: ${item.size}`)
+      if (item.color) options.push(`Color: ${item.color}`)
       description += ` (${options.join(', ')})`
     }
     

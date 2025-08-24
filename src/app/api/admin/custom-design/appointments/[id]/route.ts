@@ -25,6 +25,12 @@ export async function PATCH(
             phone: true,
           },
         },
+        detailedMeasurements: {
+          orderBy: {
+            createdAt: 'desc'
+          },
+          take: 1
+        }
       },
     })
 
@@ -37,6 +43,7 @@ export async function PATCH(
       appointmentDate: updatedOrder.appointmentDate,
       status: updatedOrder.status,
       notes: updatedOrder.notes,
+      detailedMeasurements: updatedOrder.detailedMeasurements,
       customOrderId: updatedOrder.id,
       createdAt: updatedOrder.createdAt,
     }

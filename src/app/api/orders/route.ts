@@ -1,31 +1,10 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
-import { verifyToken } from "@/lib/auth"
 
 export async function POST(request: NextRequest) {
   try {
-    // Try to get token from Authorization header first
-    const authHeader = request.headers.get('authorization')
-    let token = null
-    
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      token = authHeader.substring(7)
-    } else {
-      // If no header, try to get token from cookie
-      token = request.cookies.get("auth-token")?.value
-    }
-
-    if (!token) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-    
-    // Verify the JWT token directly
-    const payload = verifyToken(token)
-    if (!payload) {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 })
-    }
-
     const {
+      userId,
       items,
       shippingInfo,
       paymentInfo,
@@ -35,28 +14,8 @@ export async function POST(request: NextRequest) {
       total
     } = await request.json()
 
-    if (!items || !shippingInfo || !paymentInfo) {
+    if (!userId || !items || !shippingInfo || !paymentInfo) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
-    }
-
-    // Validate that all products exist and have sufficient stock
-    for (const item of items) {
-      const product = await db.product.findUnique({
-        where: { id: item.productId }
-      })
-      
-      if (!product) {
-        return NextResponse.json({ 
-          error: `Product with ID ${item.productId} not found. Please remove this item from your cart and try again.` 
-        }, { status: 400 })
-      }
-      
-      // Check if product has sufficient stock
-      if (product.stock < item.quantity) {
-        return NextResponse.json({ 
-          error: `Insufficient stock for product "${product.name}". Available: ${product.stock}, Requested: ${item.quantity}` 
-        }, { status: 400 })
-      }
     }
 
     // Generate order number
@@ -66,7 +25,7 @@ export async function POST(request: NextRequest) {
     const order = await db.order.create({
       data: {
         orderNumber,
-        userId: payload.userId,
+        userId,
         status: "PENDING",
         subtotal,
         discount: 0,
@@ -82,25 +41,59 @@ export async function POST(request: NextRequest) {
 
     // Create order items
     for (const item of items) {
-      await db.orderItem.create({
-        data: {
-          orderId: order.id,
-          productId: item.productId,
-          quantity: item.quantity,
-          price: item.finalPrice
-        }
-      })
+      // Handle custom design orders
+      if (item.productId === "custom-blouse" && item.customDesign) {
+        // Create custom order record
+        const customOrder = await db.customOrder.create({
+          data: {
+            userId,
+            fabric: item.customDesign.fabric?.name || "Custom Fabric",
+            fabricColor: item.customDesign.fabric?.color || "#000000",
+            frontDesign: item.customDesign.frontDesign?.name || "Custom Front Design",
+            backDesign: item.customDesign.backDesign?.name || "Custom Back Design",
+            oldMeasurements: JSON.stringify(item.customDesign.measurements || {}),
+            price: item.finalPrice,
+            notes: item.customDesign.ownFabricDetails?.description || "Custom blouse design",
+            appointmentDate: item.customDesign.appointmentDate ? new Date(item.customDesign.appointmentDate) : null,
+            appointmentType: item.customDesign.appointmentType || null
+          }
+        })
 
-      // Update product stock
-      await db.product.update({
-        where: { id: item.productId },
-        data: { stock: { decrement: item.quantity } }
-      })
+        // Create order item that references the virtual product
+        await db.orderItem.create({
+          data: {
+            orderId: order.id,
+            productId: item.productId,
+            quantity: item.quantity,
+            price: item.finalPrice,
+            size: item.size,
+            color: item.color
+          }
+        })
+      } else {
+        // Handle regular product orders
+        await db.orderItem.create({
+          data: {
+            orderId: order.id,
+            productId: item.productId,
+            quantity: item.quantity,
+            price: item.finalPrice,
+            size: item.size,
+            color: item.color
+          }
+        })
+
+        // Update product stock only for regular products (not custom designs)
+        await db.product.update({
+          where: { id: item.productId },
+          data: { stock: { decrement: item.quantity } }
+        })
+      }
     }
 
     // Clear user's cart
     await db.cartItem.deleteMany({
-      where: { userId: payload.userId }
+      where: { userId }
     })
 
     return NextResponse.json({ order })
@@ -112,28 +105,12 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    // Try to get token from Authorization header first
-    const authHeader = request.headers.get('authorization')
-    let token = null
-    
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      token = authHeader.substring(7)
-    } else {
-      // If no header, try to get token from cookie
-      token = request.cookies.get("auth-token")?.value
-    }
+    const { searchParams } = new URL(request.url)
+    const userId = searchParams.get("userId")
 
-    if (!token) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    if (!userId) {
+      return NextResponse.json({ error: "User ID is required" }, { status: 400 })
     }
-    
-    // Verify the JWT token directly
-    const payload = verifyToken(token)
-    if (!payload) {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 })
-    }
-
-    const userId = payload.userId
 
     const orders = await db.order.findMany({
       where: { userId },

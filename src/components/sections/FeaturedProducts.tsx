@@ -26,11 +26,6 @@ interface Product {
   reviewCount: number
   isNew?: boolean
   isBestSeller?: boolean
-  // Front and back design pricing
-  frontDesignName?: string
-  frontDesignPrice?: number
-  backDesignName?: string
-  backDesignPrice?: number
 }
 
 export default function FeaturedProducts() {
@@ -48,11 +43,7 @@ export default function FeaturedProducts() {
       hoverImage: "/api/placeholder/300/400",
       rating: 4.5,
       reviewCount: 128,
-      isNew: true,
-      frontDesignName: "Classic Neck",
-      frontDesignPrice: 1200,
-      backDesignName: "Deep Cut",
-      backDesignPrice: 800
+      isNew: true
     },
     {
       id: "2",
@@ -63,9 +54,7 @@ export default function FeaturedProducts() {
       hoverImage: "/api/placeholder/300/400",
       rating: 4.8,
       reviewCount: 89,
-      isBestSeller: true,
-      frontDesignName: "Round Neck",
-      frontDesignPrice: 600
+      isBestSeller: true
     },
     {
       id: "3",
@@ -76,11 +65,7 @@ export default function FeaturedProducts() {
       image: "/api/placeholder/300/400",
       hoverImage: "/api/placeholder/300/400",
       rating: 5,
-      reviewCount: 45,
-      frontDesignName: "Sweetheart Neck",
-      frontDesignPrice: 2500,
-      backDesignName: "Low Back",
-      backDesignPrice: 1800
+      reviewCount: 45
     },
     {
       id: "4",
@@ -103,9 +88,7 @@ export default function FeaturedProducts() {
       hoverImage: "/api/placeholder/300/400",
       rating: 4.7,
       reviewCount: 93,
-      isBestSeller: true,
-      backDesignName: "Open Back",
-      backDesignPrice: 1200
+      isBestSeller: true
     },
     {
       id: "6",
@@ -120,7 +103,7 @@ export default function FeaturedProducts() {
   ]
 
   const renderStars = (rating: number) => {
-    const stars = []
+    const stars: React.JSX.Element[] = []
     const fullStars = Math.floor(rating)
     const hasHalfStar = rating % 1 !== 0
 
@@ -208,11 +191,7 @@ export default function FeaturedProducts() {
                         finalPrice: product.finalPrice,
                         quantity: 1,
                         image: product.image,
-                        sku: `SKU-${product.id}`,
-                        frontDesignName: product.frontDesignName,
-                        frontDesignPrice: product.frontDesignPrice,
-                        backDesignName: product.backDesignName,
-                        backDesignPrice: product.backDesignPrice
+                        sku: `SKU-${product.id}`
                       })}
                     >
                       <ShoppingCart className="h-4 w-4 mr-2" />
@@ -264,11 +243,7 @@ export default function FeaturedProducts() {
                         finalPrice: product.finalPrice,
                         quantity: 1,
                         image: product.image,
-                        sku: `SKU-${product.id}`,
-                        frontDesignName: product.frontDesignName,
-                        frontDesignPrice: product.frontDesignPrice,
-                        backDesignName: product.backDesignName,
-                        backDesignPrice: product.backDesignPrice
+                        sku: `SKU-${product.id}`
                       })}
                     >
                       <ShoppingCart className="h-4 w-4 mr-1" />

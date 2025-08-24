@@ -79,6 +79,7 @@ interface BlouseDesign {
   type: "FRONT" | "BACK"
   image?: string
   description?: string
+  stitchCost: number
   isActive: boolean
   createdAt: string
   updatedAt: string
@@ -121,6 +122,7 @@ interface CustomDesign {
     notes: string
   }
   appointmentDate: string | null
+  appointmentType: "VIRTUAL" | "IN_PERSON" | null
   ownFabricDetails?: OwnFabricDetails | null
 }
 
@@ -193,6 +195,7 @@ export default function CustomDesignPage() {
       notes: ""
     },
     appointmentDate: null,
+    appointmentType: null,
     ownFabricDetails: {
       name: "",
       color: "",
@@ -213,11 +216,6 @@ export default function CustomDesignPage() {
   const [showVariantsModal, setShowVariantsModal] = useState(false)
   const [selectedDesignForVariants, setSelectedDesignForVariants] = useState<BlouseDesign | null>(null)
   const [variantsModalDesignType, setVariantsModalDesignType] = useState<"front" | "back">("front")
-  const [showDateTimePicker, setShowDateTimePicker] = useState(false)
-  const [selectedDate, setSelectedDate] = useState("")
-  const [selectedTime, setSelectedTime] = useState("")
-  const [appointmentNotes, setAppointmentNotes] = useState("")
-  const [appointmentType, setAppointmentType] = useState<"virtual" | "in-person">("virtual")
   
   const { addItem } = useCart()
   const { toast } = useToast()
@@ -411,20 +409,29 @@ export default function CustomDesignPage() {
     let totalPrice = 0
     
     // Add fabric cost (only if not customer's own fabric)
-    if (!design.fabric.isOwnFabric) {
-      totalPrice += design.fabric.pricePerMeter * 1.5 // Assuming 1.5 meters per blouse
+    if (!design.fabric.isOwnFabric && design.fabric.pricePerMeter) {
+      totalPrice += design.fabric.pricePerMeter * 1.5
     }
     
-    // Add front blouse model price
-    if (design.selectedModels.frontModel) {
+    // Add blouse design stitch cost (front + back)
+    if (design.frontDesign && design.frontDesign.stitchCost) {
+      totalPrice += design.frontDesign.stitchCost
+    }
+    if (design.backDesign && design.backDesign.stitchCost) {
+      totalPrice += design.backDesign.stitchCost
+    }
+    
+    // Add front model price
+    if (design.selectedModels.frontModel && design.selectedModels.frontModel.finalPrice) {
       totalPrice += design.selectedModels.frontModel.finalPrice
     }
     
-    // Add back blouse model price
-    if (design.selectedModels.backModel) {
+    // Add back model price
+    if (design.selectedModels.backModel && design.selectedModels.backModel.finalPrice) {
       totalPrice += design.selectedModels.backModel.finalPrice
     }
     
+    // Total Price = Fabric Price (if applicable) + Blouse Design Stitch Cost + Front Model Price + Back Model Price
     return totalPrice
   }
 
@@ -480,13 +487,20 @@ export default function CustomDesignPage() {
     setDesign(prev => ({ ...prev, appointmentDate: date }))
   }
 
+  const handleAppointmentTypeChange = (type: "VIRTUAL" | "IN_PERSON") => {
+    setDesign(prev => ({ ...prev, appointmentType: type }))
+  }
+
   const handleModelSelect = (model: BlouseModel, designType: "front" | "back") => {
     setDesign(prev => ({
       ...prev,
       selectedModels: {
         ...prev.selectedModels,
         [designType + "Model"]: model
-      }
+      },
+      // Also extract and store the design from the model
+      ...(designType === "front" && { frontDesign: model.frontDesign }),
+      ...(designType === "back" && { backDesign: model.backDesign })
     }))
 
     toast({
@@ -501,7 +515,10 @@ export default function CustomDesignPage() {
       selectedModels: {
         ...prev.selectedModels,
         [designType + "Model"]: null
-      }
+      },
+      // Also clear the corresponding design
+      ...(designType === "front" && { frontDesign: null }),
+      ...(designType === "back" && { backDesign: null })
     }))
 
     toast({
@@ -547,13 +564,7 @@ export default function CustomDesignPage() {
         quantity: 1,
         image: design.fabric.image || "/api/placeholder/200/200",
         sku: `CUSTOM-${Date.now()}`,
-        customDesign: design,
-        isCustomDesign: true,
-        // Add design pricing information for cart display
-        frontDesignName: design.selectedModels.frontModel?.name,
-        frontDesignPrice: design.selectedModels.frontModel?.finalPrice,
-        backDesignName: design.selectedModels.backModel?.name,
-        backDesignPrice: design.selectedModels.backModel?.finalPrice
+        customDesign: design
       }
 
       addItem(customOrder)
@@ -583,6 +594,7 @@ export default function CustomDesignPage() {
           notes: ""
         },
         appointmentDate: null,
+        appointmentType: null,
         ownFabricDetails: {
           name: "",
           color: "",
@@ -591,13 +603,6 @@ export default function CustomDesignPage() {
         }
       })
       setCurrentStep("fabric")
-      
-      // Reset appointment-related state
-      setShowDateTimePicker(false)
-      setSelectedDate("")
-      setSelectedTime("")
-      setAppointmentNotes("")
-      setAppointmentType("virtual")
     } catch (error) {
       toast({
         title: "Error",
@@ -1270,24 +1275,17 @@ export default function CustomDesignPage() {
                         <Label>Appointment Type</Label>
                         <div className="grid grid-cols-2 gap-3 mt-2">
                           <Button
-                            variant={design.appointmentDate ? "default" : "outline"}
+                            variant={design.appointmentType === "VIRTUAL" ? "default" : "outline"}
                             className="justify-start"
-                            onClick={() => {
-                              // Show date/time selection for virtual call
-                              setShowDateTimePicker(true)
-                              setAppointmentType("virtual")
-                            }}
+                            onClick={() => handleAppointmentTypeChange("VIRTUAL")}
                           >
                             <Calendar className="h-4 w-4 mr-2" />
                             Virtual Call
                           </Button>
                           <Button
-                            variant="outline"
+                            variant={design.appointmentType === "IN_PERSON" ? "default" : "outline"}
                             className="justify-start"
-                            onClick={() => {
-                              setShowDateTimePicker(true)
-                              setAppointmentType("in-person")
-                            }}
+                            onClick={() => handleAppointmentTypeChange("IN_PERSON")}
                           >
                             <Calendar className="h-4 w-4 mr-2" />
                             In-Person
@@ -1295,112 +1293,52 @@ export default function CustomDesignPage() {
                         </div>
                       </div>
 
-                      {/* Date and Time Picker Modal */}
-                      {showDateTimePicker && (
-                        <Card className="border-2 border-blue-200">
-                          <CardHeader>
-                            <CardTitle className="text-lg">Select Appointment Date & Time</CardTitle>
-                            <CardDescription>
-                              Choose your preferred date and time for {appointmentType === "virtual" ? "virtual" : "in-person"} measurement
-                            </CardDescription>
-                          </CardHeader>
-                          <CardContent className="space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
-                              <div>
-                                <Label htmlFor="appointment-date">Date</Label>
-                                <Input
-                                  id="appointment-date"
-                                  type="date"
-                                  min={new Date().toISOString().split('T')[0]}
-                                  value={selectedDate}
-                                  onChange={(e) => setSelectedDate(e.target.value)}
-                                  className="mt-1"
-                                />
-                              </div>
-                              <div>
-                                <Label htmlFor="appointment-time">Time</Label>
-                                <Select value={selectedTime} onValueChange={setSelectedTime}>
-                                  <SelectTrigger className="mt-1">
-                                    <SelectValue placeholder="Select time" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="09:00">9:00 AM</SelectItem>
-                                    <SelectItem value="10:00">10:00 AM</SelectItem>
-                                    <SelectItem value="11:00">11:00 AM</SelectItem>
-                                    <SelectItem value="14:00">2:00 PM</SelectItem>
-                                    <SelectItem value="15:00">3:00 PM</SelectItem>
-                                    <SelectItem value="16:00">4:00 PM</SelectItem>
-                                    <SelectItem value="17:00">5:00 PM</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            </div>
-                            
-                            <div>
-                              <Label htmlFor="appointment-notes">Special Requirements (Optional)</Label>
-                              <Textarea
-                                id="appointment-notes"
-                                placeholder="Any specific requirements or notes for your appointment..."
-                                value={appointmentNotes}
-                                onChange={(e) => setAppointmentNotes(e.target.value)}
-                                className="mt-1"
-                                rows={2}
-                              />
-                            </div>
-
-                            <div className="flex space-x-2">
-                              <Button 
-                                onClick={() => {
-                                  if (selectedDate && selectedTime) {
-                                    const appointmentDateTime = new Date(`${selectedDate}T${selectedTime}`)
-                                    handleAppointmentDateChange(appointmentDateTime.toISOString())
-                                    setShowDateTimePicker(false)
-                                    toast({
-                                      title: "Appointment Scheduled",
-                                      description: `Your ${appointmentType} appointment is scheduled for ${appointmentDateTime.toLocaleDateString()} at ${appointmentDateTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`,
-                                    })
-                                  } else {
-                                    toast({
-                                      title: "Incomplete Selection",
-                                      description: "Please select both date and time for your appointment.",
-                                      variant: "destructive"
-                                    })
-                                  }
-                                }}
-                                disabled={!selectedDate || !selectedTime}
-                              >
-                                Confirm Appointment
-                              </Button>
-                              <Button 
-                                variant="outline" 
-                                onClick={() => {
-                                  setShowDateTimePicker(false)
-                                  setSelectedDate("")
-                                  setSelectedTime("")
-                                  setAppointmentNotes("")
-                                }}
-                              >
-                                Cancel
-                              </Button>
-                            </div>
-                          </CardContent>
-                        </Card>
+                      {design.appointmentType && (
+                        <div className="space-y-4">
+                          <div>
+                            <Label htmlFor="appointmentDate">Preferred Date</Label>
+                            <Input
+                              id="appointmentDate"
+                              type="date"
+                              min={new Date().toISOString().split('T')[0]}
+                              value={design.appointmentDate ? new Date(design.appointmentDate).toISOString().split('T')[0] : ''}
+                              onChange={(e) => {
+                                const date = new Date(e.target.value)
+                                const existingTime = design.appointmentDate ? new Date(design.appointmentDate) : new Date()
+                                date.setHours(existingTime.getHours(), existingTime.getMinutes())
+                                handleAppointmentDateChange(date.toISOString())
+                              }}
+                              className="mt-1"
+                            />
+                          </div>
+                          
+                          <div>
+                            <Label htmlFor="appointmentTime">Preferred Time</Label>
+                            <Input
+                              id="appointmentTime"
+                              type="time"
+                              value={design.appointmentDate ? new Date(design.appointmentDate).toTimeString().slice(0, 5) : ''}
+                              onChange={(e) => {
+                                const time = e.target.value.split(':')
+                                const existingDate = design.appointmentDate ? new Date(design.appointmentDate) : new Date()
+                                existingDate.setHours(parseInt(time[0]), parseInt(time[1]))
+                                handleAppointmentDateChange(existingDate.toISOString())
+                              }}
+                              className="mt-1"
+                            />
+                          </div>
+                        </div>
                       )}
 
-                      {design.appointmentDate && (
+                      {design.appointmentDate && design.appointmentType && (
                         <div className="p-4 bg-green-50 rounded-lg border border-green-200">
                           <div className="flex items-start space-x-3">
                             <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" />
                             <div>
                               <h4 className="font-medium text-green-900">Appointment Scheduled</h4>
                               <p className="text-sm text-green-700 mt-1">
-                                {appointmentType === "virtual" ? "Virtual" : "In-person"} measurement appointment scheduled for {new Date(design.appointmentDate).toLocaleDateString()} at {new Date(design.appointmentDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                {design.appointmentType === "VIRTUAL" ? "Virtual" : "In-person"} measurement appointment scheduled for {new Date(design.appointmentDate).toLocaleDateString()} at {new Date(design.appointmentDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                               </p>
-                              {appointmentNotes && (
-                                <p className="text-sm text-green-600 mt-1">
-                                  Notes: {appointmentNotes}
-                                </p>
-                              )}
                             </div>
                           </div>
                         </div>
@@ -1409,7 +1347,7 @@ export default function CustomDesignPage() {
                       <div className="mt-6">
                         <Button 
                           onClick={() => {
-                            if (design.appointmentDate) {
+                            if (design.appointmentDate && design.appointmentType) {
                               toast({
                                 title: "Appointment Confirmed",
                                 description: "Your measurement appointment has been confirmed.",
@@ -1417,14 +1355,14 @@ export default function CustomDesignPage() {
                               setCurrentStep("review")
                             } else {
                               toast({
-                                title: "Select Appointment",
-                                description: "Please select an appointment type to continue.",
+                                title: "Incomplete Appointment",
+                                description: "Please select both appointment type and date/time to continue.",
                                 variant: "destructive"
                               })
                             }
                           }}
                           className="w-full"
-                          disabled={!design.appointmentDate}
+                          disabled={!design.appointmentDate || !design.appointmentType}
                         >
                           Confirm Appointment & Continue
                           <ArrowRight className="h-4 w-4 ml-2" />
@@ -1456,37 +1394,101 @@ export default function CustomDesignPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
+                    {/* Blouse Design Name */}
+                    {(design.frontDesign || design.backDesign) && (
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">Blouse Design Name</p>
+                        <div className="space-y-1">
+                          {design.frontDesign && (
+                            <p className="font-medium">Front: {design.frontDesign.name}</p>
+                          )}
+                          {design.backDesign && (
+                            <p className="font-medium">Back: {design.backDesign.name}</p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Blouse Design Stitch Cost */}
+                    {(design.frontDesign || design.backDesign) && (
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">Blouse Design Stitch Cost</p>
+                        <div className="space-y-1">
+                          {design.frontDesign && (
+                            <p className="text-sm text-gray-600">Front: ₹{(design.frontDesign.stitchCost || 0).toLocaleString()}</p>
+                          )}
+                          {design.backDesign && (
+                            <p className="text-sm text-gray-600">Back: ₹{(design.backDesign.stitchCost || 0).toLocaleString()}</p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Front Model Name */}
+                    {design.selectedModels.frontModel && (
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">Front Model Name</p>
+                        <p className="font-medium">{design.selectedModels.frontModel.name}</p>
+                      </div>
+                    )}
+
+                    {/* Back Model Name */}
+                    {design.selectedModels.backModel && (
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">Back Model Name</p>
+                        <p className="font-medium">{design.selectedModels.backModel.name}</p>
+                      </div>
+                    )}
+
+                    {/* Fabric Information */}
                     <div>
-                      <p className="text-sm font-medium text-gray-600">Fabric</p>
-                      <p className="font-medium">{design.fabric?.name || "Custom fabric"}</p>
-                      {design.fabric?.color && (
-                        <div className="flex items-center space-x-2 mt-1">
-                          <div 
-                            className="w-4 h-4 rounded border"
-                            style={{ backgroundColor: design.fabric.color.toLowerCase() }}
-                          />
-                          <span className="text-sm text-gray-600">{design.fabric.color}</span>
+                      <p className="text-sm font-medium text-gray-600">Fabric Name</p>
+                      {design.fabric?.isOwnFabric ? (
+                        <div className="space-y-1">
+                          <p className="font-medium text-blue-600">Client-Provided Fabric</p>
+                          {design.ownFabricDetails && (
+                            <div className="text-sm text-gray-600 space-y-1 bg-blue-50 p-3 rounded-md">
+                              <p className="font-medium text-blue-800">Client Fabric Details:</p>
+                              {design.ownFabricDetails.name && (
+                                <p><span className="font-medium">Type:</span> {design.ownFabricDetails.name}</p>
+                              )}
+                              {design.ownFabricDetails.color && (
+                                <div className="flex items-center space-x-2">
+                                  <span className="font-medium">Color:</span>
+                                  <div 
+                                    className="w-4 h-4 rounded border"
+                                    style={{ backgroundColor: design.ownFabricDetails.color.toLowerCase() }}
+                                  />
+                                  <span>{design.ownFabricDetails.color}</span>
+                                </div>
+                              )}
+                              {design.ownFabricDetails.description && (
+                                <p><span className="font-medium">Notes:</span> {design.ownFabricDetails.description}</p>
+                              )}
+                              {design.ownFabricDetails.quantity && (
+                                <p><span className="font-medium">Quantity:</span> {design.ownFabricDetails.quantity} meters</p>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="space-y-1">
+                          <p className="font-medium">{design.fabric?.name}</p>
+                          {design.fabric?.color && (
+                            <div className="flex items-center space-x-2">
+                              <div 
+                                className="w-4 h-4 rounded border"
+                                style={{ backgroundColor: design.fabric.color.toLowerCase() }}
+                              />
+                              <span className="text-sm text-gray-600">{design.fabric.color}</span>
+                            </div>
+                          )}
+                          {design.fabric?.type && (
+                            <p className="text-sm text-gray-600">{design.fabric.type}</p>
+                          )}
                         </div>
                       )}
                     </div>
-                    {design.frontDesign && (
-                      <div>
-                        <p className="text-sm font-medium text-gray-600">Front Design</p>
-                        <p className="font-medium">{design.frontDesign.name}</p>
-                        {design.frontDesignVariant && (
-                          <p className="text-sm text-gray-500">Style: {design.frontDesignVariant.name}</p>
-                        )}
-                      </div>
-                    )}
-                    {design.backDesign && (
-                      <div>
-                        <p className="text-sm font-medium text-gray-600">Back Design</p>
-                        <p className="font-medium">{design.backDesign.name}</p>
-                        {design.backDesignVariant && (
-                          <p className="text-sm text-gray-500">Style: {design.backDesignVariant.name}</p>
-                        )}
-                      </div>
-                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -1500,26 +1502,45 @@ export default function CustomDesignPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div>Bust: <span className="font-medium">{design.measurements.bust}"</span></div>
-                    <div>Waist: <span className="font-medium">{design.measurements.waist}"</span></div>
-                    <div>Hips: <span className="font-medium">{design.measurements.hips}"</span></div>
-                    <div>Shoulder: <span className="font-medium">{design.measurements.shoulder}"</span></div>
-                    <div>Sleeve: <span className="font-medium">{design.measurements.sleeveLength}"</span></div>
-                    <div>Length: <span className="font-medium">{design.measurements.blouseLength}"</span></div>
-                  </div>
-                  {design.measurements.notes && (
-                    <div className="mt-2">
-                      <p className="text-sm font-medium text-gray-600">Notes:</p>
-                      <p className="text-sm">{design.measurements.notes}</p>
-                    </div>
-                  )}
-                  {design.appointmentDate && (
-                    <div className="mt-3 p-3 bg-blue-50 rounded-lg">
-                      <p className="text-sm font-medium text-blue-900">Professional Measurement</p>
-                      <p className="text-sm text-blue-700">
-                        Appointment on {new Date(design.appointmentDate).toLocaleDateString()}
+                  {design.appointmentDate && design.appointmentType ? (
+                    <div className="space-y-3">
+                      <div className="p-3 bg-blue-50 rounded-lg">
+                        <p className="text-sm font-medium text-blue-900 mb-1">Professional Measurement Appointment</p>
+                        <div className="text-sm text-blue-700 space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">Type:</span>
+                            <span>{design.appointmentType === 'VIRTUAL' ? 'Virtual Call' : 'In-Person'}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">Date:</span>
+                            <span>{new Date(design.appointmentDate).toLocaleDateString()}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">Time:</span>
+                            <span>{new Date(design.appointmentDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <p className="text-xs text-gray-500">
+                        Measurement details will be recorded during your appointment.
                       </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div>Bust: <span className="font-medium">{design.measurements.bust}"</span></div>
+                        <div>Waist: <span className="font-medium">{design.measurements.waist}"</span></div>
+                        <div>Hips: <span className="font-medium">{design.measurements.hips}"</span></div>
+                        <div>Shoulder: <span className="font-medium">{design.measurements.shoulder}"</span></div>
+                        <div>Sleeve: <span className="font-medium">{design.measurements.sleeveLength}"</span></div>
+                        <div>Length: <span className="font-medium">{design.measurements.blouseLength}"</span></div>
+                      </div>
+                      {design.measurements.notes && (
+                        <div className="mt-2">
+                          <p className="text-sm font-medium text-gray-600">Notes:</p>
+                          <p className="text-sm">{design.measurements.notes}</p>
+                        </div>
+                      )}
                     </div>
                   )}
                 </CardContent>
@@ -1535,34 +1556,56 @@ export default function CustomDesignPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
-                    {/* Fabric Cost */}
+                    {/* Fabric Price (only if fabric is not provided by the client) */}
                     {!design.fabric?.isOwnFabric && design.fabric && (
                       <div className="flex justify-between">
-                        <span>Fabric Cost ({design.fabric.name}):</span>
+                        <span>Fabric Price:</span>
                         <span>₹{(design.fabric.pricePerMeter * 1.5).toLocaleString()}</span>
                       </div>
                     )}
-                    
+
                     {/* Front Blouse Model Price */}
                     {design.selectedModels.frontModel && (
                       <div className="flex justify-between">
-                        <span>Front Model ({design.selectedModels.frontModel.name}):</span>
+                        <span>Front Blouse Model Price:</span>
                         <span>₹{design.selectedModels.frontModel.finalPrice.toLocaleString()}</span>
                       </div>
                     )}
-                    
+
                     {/* Back Blouse Model Price */}
                     {design.selectedModels.backModel && (
                       <div className="flex justify-between">
-                        <span>Back Model ({design.selectedModels.backModel.name}):</span>
+                        <span>Back Blouse Model Price:</span>
                         <span>₹{design.selectedModels.backModel.finalPrice.toLocaleString()}</span>
                       </div>
                     )}
-                    
-                    {/* Fabric Savings for Own Fabric */}
+
+                    {/* Blouse Design Stitch Cost */}
+                    {(design.frontDesign || design.backDesign) && (
+                      <div className="flex justify-between">
+                        <span>Blouse Design Stitch Cost:</span>
+                        <span>₹{((design.frontDesign?.stitchCost || 0) + (design.backDesign?.stitchCost || 0)).toLocaleString()}</span>
+                      </div>
+                    )}
+
+                    {/* Blouse Design Names */}
+                    {(design.frontDesign || design.backDesign) && (
+                      <div className="text-sm text-gray-600">
+                        {design.frontDesign && design.backDesign && (
+                          <p>Designs: {design.frontDesign.name} (Front) + {design.backDesign.name} (Back)</p>
+                        )}
+                        {design.frontDesign && !design.backDesign && (
+                          <p>Design: {design.frontDesign.name} (Front)</p>
+                        )}
+                        {!design.frontDesign && design.backDesign && (
+                          <p>Design: {design.backDesign.name} (Back)</p>
+                        )}
+                      </div>
+                    )}
+
                     {design.fabric?.isOwnFabric && (
                       <div className="flex justify-between text-green-600">
-                        <span>Fabric Savings (Customer's own fabric):</span>
+                        <span>Fabric Savings:</span>
                         <span>-₹{((design.fabric.pricePerMeter || 0) * 1.5).toLocaleString()}</span>
                       </div>
                     )}

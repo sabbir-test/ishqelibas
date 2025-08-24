@@ -20,6 +20,7 @@ export async function GET(request: NextRequest) {
         type: true,
         image: true,
         description: true,
+        stitchCost: true,
         isActive: true,
         createdAt: true,
         updatedAt: true,

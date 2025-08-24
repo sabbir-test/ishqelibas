@@ -19,6 +19,12 @@ export async function GET(request: NextRequest) {
             phone: true,
           },
         },
+        detailedMeasurements: {
+          orderBy: {
+            createdAt: 'desc'
+          },
+          take: 1 // Get the latest measurement
+        }
       },
       orderBy: {
         appointmentDate: 'asc',
@@ -33,8 +39,11 @@ export async function GET(request: NextRequest) {
       userEmail: order.user.email,
       userPhone: order.user.phone || 'Not provided',
       appointmentDate: order.appointmentDate,
+      appointmentType: order.appointmentType,
       status: order.status,
       notes: order.notes,
+      measurementDetails: order.measurementDetails,
+      detailedMeasurements: order.detailedMeasurements,
       customOrderId: order.id,
       createdAt: order.createdAt,
     }))
@@ -52,9 +61,9 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { userId, appointmentDate, notes } = body
+    const { userId, appointmentDate, appointmentType, notes } = body
 
-    if (!userId || !appointmentDate) {
+    if (!userId || !appointmentDate || !appointmentType) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
@@ -66,13 +75,14 @@ export async function POST(request: NextRequest) {
       data: {
         userId,
         appointmentDate: new Date(appointmentDate),
+        appointmentType,
         notes,
         status: 'PENDING',
         fabric: '',
         fabricColor: '',
         frontDesign: '',
         backDesign: '',
-        measurements: '',
+        oldMeasurements: '',
         price: 0,
       },
       include: {
@@ -94,8 +104,10 @@ export async function POST(request: NextRequest) {
       userEmail: customOrder.user.email,
       userPhone: customOrder.user.phone || 'Not provided',
       appointmentDate: customOrder.appointmentDate,
+      appointmentType: customOrder.appointmentType,
       status: customOrder.status,
       notes: customOrder.notes,
+      measurementDetails: customOrder.measurementDetails,
       customOrderId: customOrder.id,
       createdAt: customOrder.createdAt,
     }

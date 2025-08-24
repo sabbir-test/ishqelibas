@@ -41,13 +41,8 @@ interface Product {
   rating: number
   reviewCount: number
   inStock: boolean
-  sizes?: string[]
-  colors?: string[]
-  // Front and back design pricing
-  frontDesignName?: string
-  frontDesignPrice?: number
-  backDesignName?: string
-  backDesignPrice?: number
+  sizes?: string
+  colors?: string
 }
 
 interface Category {
@@ -325,17 +320,17 @@ export default function ShopPage() {
           {/* Size and Color indicators */}
           {(product.sizes || product.colors) && (
             <div className="mb-3">
-              {product.sizes && product.sizes.length > 0 && (
+              {product.sizes && (
                 <div className="text-xs text-gray-500 mb-1">
-                  Sizes: {product.sizes.slice(0, 3).join(", ")}
-                  {product.sizes.length > 3 && "..."}
+                  Sizes: {JSON.parse(product.sizes).slice(0, 3).join(", ")}
+                  {JSON.parse(product.sizes).length > 3 && "..."}
                 </div>
               )}
-              {product.colors && product.colors.length > 0 && (
+              {product.colors && (
                 <div className="flex items-center gap-1">
                   <span className="text-xs text-gray-500">Colors:</span>
                   <div className="flex gap-1">
-                    {product.colors.slice(0, 3).map((color, index) => (
+                    {JSON.parse(product.colors).slice(0, 3).map((color: string, index: number) => (
                       <div
                         key={index}
                         className="w-3 h-3 rounded-full border border-gray-300"
@@ -435,16 +430,16 @@ export default function ShopPage() {
           {/* Size and Color indicators */}
           {(product.sizes || product.colors) && (
             <div className="mb-3">
-              {product.sizes && product.sizes.length > 0 && (
+              {product.sizes && (
                 <div className="text-sm text-gray-500 mb-1">
-                  Available Sizes: {product.sizes.join(", ")}
+                  Available Sizes: {JSON.parse(product.sizes).join(", ")}
                 </div>
               )}
-              {product.colors && product.colors.length > 0 && (
+              {product.colors && (
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-gray-500">Available Colors:</span>
                   <div className="flex gap-1">
-                    {product.colors.map((color, index) => (
+                    {JSON.parse(product.colors).map((color: string, index: number) => (
                       <div
                         key={index}
                         className="w-4 h-4 rounded-full border border-gray-300"

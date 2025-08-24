@@ -35,7 +35,7 @@ model User {
   reviews       Review[]
   wishlistItems WishlistItem[]
   customOrders  CustomOrder[]
-  measurements  BlouseMeasurement[]
+  measurements  Measurement[]
   
   @@map("users")
 }
@@ -176,31 +176,55 @@ model WishlistItem {
 
 // Custom Blouse Design Models
 model CustomOrder {
-  id               String           @id @default(cuid())
-  userId           String
-  status           CustomOrderStatus @default(PENDING)
-  fabric           String
-  fabricColor      String
-  frontDesign      String
-  backDesign       String
-  frontDesignModel String?
-  backDesignModel  String?
-  oldMeasurements  String? // Renamed from measurements to avoid conflict
-  price            Float
-  fabricCost       Float?
-  frontModelPrice  Float?
-  backModelPrice   Float?
-  isOwnFabric      Boolean          @default(false)
-  notes            String?
-  appointmentDate  DateTime?
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
+  id            String           @id @default(cuid())
+  userId        String
+  status        CustomOrderStatus @default(PENDING)
+  fabric        String
+  fabricColor   String
+  frontDesign   String
+  backDesign    String
+  oldMeasurements  String
+  price         Float
+  notes         String?
+  appointmentDate DateTime?
+  appointmentType String? // 'VIRTUAL' or 'IN_PERSON'
+  measurementDetails String? // JSON string for detailed measurements
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
   
   // Relations
-  user         User               @relation(fields: [userId], references: [id])
-  measurements BlouseMeasurement[] 
+  user User @relation(fields: [userId], references: [id])
+  detailedMeasurements Measurement[]
   
   @@map("custom_orders")
+}
+
+model Measurement {
+  id                 String   @id @default(cuid())
+  customOrderId      String?
+  userId             String?
+  blouseBackLength   Float?
+  fullShoulder       Float?
+  shoulderStrap      Float?
+  backNeckDepth      Float?
+  frontNeckDepth     Float?
+  shoulderToApex     Float?
+  frontLength        Float?
+  chest              Float?
+  waist              Float?
+  sleeveLength       Float?
+  armRound           Float?
+  sleeveRound        Float?
+  armHole            Float?
+  notes              String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  
+  // Relations
+  customOrder CustomOrder? @relation(fields: [customOrderId], references: [id], onDelete: Cascade)
+  user        User?        @relation(fields: [userId], references: [id])
+  
+  @@map("measurements")
 }
 
 model Fabric {
@@ -223,6 +247,7 @@ model BlouseDesign {
   type        DesignType
   image       String?
   description String?
+  stitchCost  Float          @default(0)
   isActive    Boolean        @default(true)
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
@@ -287,41 +312,6 @@ model BlouseModel {
   backDesign   BlouseDesign? @relation("BackModelDesign", fields: [backDesignId], references: [id])
   
   @@map("blouse_models")
-}
-
-model BlouseMeasurement {
-  id               String   @id @default(cuid())
-  userId           String
-  customOrderId    String?
-  
-  // BLOUSE FRONT measurements
-  blouseBackLength Float?
-  fullShoulder     Float?
-  shoulderStrap    Float?
-  backNeckDepth    Float?
-  frontNeckDepth   Float?
-  shoulderToApex   Float?
-  frontLength      Float?
-  chest            Float?
-  waist            Float?
-  
-  // BLOUSE BACK measurements
-  sleeveLength     Float?
-  armRound         Float?
-  sleeveRound      Float?
-  armHole          Float?
-  
-  notes            String?
-  measuredBy       String? // Admin who took the measurement
-  measurementDate  DateTime @default(now())
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-  
-  // Relations
-  user        User         @relation(fields: [userId], references: [id])
-  customOrder CustomOrder? @relation(fields: [customOrderId], references: [id])
-  
-  @@map("blouse_measurements")
 }
 
 // Enums

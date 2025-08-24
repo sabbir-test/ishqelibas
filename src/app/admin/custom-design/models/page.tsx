@@ -32,6 +32,7 @@ interface BlouseDesign {
   type: "FRONT" | "BACK"
   image?: string
   description?: string
+  stitchCost: number
   isActive: boolean
   category?: {
     id: string
@@ -68,7 +69,7 @@ export default function AdminModelsPage() {
   const [editingModel, setEditingModel] = useState<BlouseModel | null>(null)
   const [formData, setFormData] = useState({
     name: "",
-    designType: "",
+    modelType: "",
     designId: "",
     image: "",
     description: "",
@@ -166,21 +167,18 @@ export default function AdminModelsPage() {
 
   const handleEdit = (model: BlouseModel) => {
     setEditingModel(model)
-    // Determine which design is set and set the designType and designId accordingly
-    let designType = ""
+    // Determine which design is set and set the designId accordingly
     let designId = ""
     
     if (model.frontDesign) {
-      designType = "FRONT"
       designId = model.frontDesign.id
     } else if (model.backDesign) {
-      designType = "BACK"
       designId = model.backDesign.id
     }
     
     setFormData({
       name: model.name,
-      designType,
+      modelType: model.frontDesign ? "FRONT" : model.backDesign ? "BACK" : "",
       designId,
       image: model.image || "",
       description: model.description || "",
@@ -195,7 +193,7 @@ export default function AdminModelsPage() {
     setEditingModel(null)
     setFormData({
       name: "",
-      designType: "",
+      modelType: "",
       designId: "",
       image: "",
       description: "",
@@ -211,10 +209,31 @@ export default function AdminModelsPage() {
       const url = editingModel ? `/api/admin/blouse-models/${editingModel.id}` : "/api/admin/blouse-models"
       const method = editingModel ? "PUT" : "POST"
       
+      // Find the selected design to get its details
+      const selectedDesign = designs.find(design => design.id === formData.designId)
+      
+      if (!selectedDesign) {
+        toast({
+          title: "Error",
+          description: "Please select a valid design",
+          variant: "destructive"
+        })
+        return
+      }
+      
+      if (!formData.modelType) {
+        toast({
+          title: "Error",
+          description: "Please select a model type",
+          variant: "destructive"
+        })
+        return
+      }
+      
       const payload = {
         name: formData.name,
-        frontDesignId: formData.designType === "FRONT" ? formData.designId : null,
-        backDesignId: formData.designType === "BACK" ? formData.designId : null,
+        frontDesignId: formData.modelType === "FRONT" ? formData.designId : null,
+        backDesignId: formData.modelType === "BACK" ? formData.designId : null,
         image: formData.image,
         description: formData.description,
         price: parseFloat(formData.price),
@@ -689,12 +708,12 @@ export default function AdminModelsPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="designType">Design Type</Label>
-                <Select value={formData.designType} onValueChange={(value) => {
-                  setFormData(prev => ({ ...prev, designType: value, designId: "" }))
-                }}>
+                <Label htmlFor="modelType">Model Type *</Label>
+                <Select value={formData.modelType} onValueChange={(value) => 
+                  setFormData(prev => ({ ...prev, modelType: value }))
+                }>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select design type" />
+                    <SelectValue placeholder="Select model type" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="FRONT">Front</SelectItem>
@@ -704,64 +723,111 @@ export default function AdminModelsPage() {
               </div>
 
               <div>
-                <Label htmlFor="designId">Design Name</Label>
+                <Label htmlFor="designId">Design Name *</Label>
                 <Select value={formData.designId} onValueChange={(value) => 
                   setFormData(prev => ({ ...prev, designId: value }))
-                } disabled={!formData.designType || isDesignsLoading}>
+                } disabled={isDesignsLoading}>
                   <SelectTrigger>
                     <SelectValue placeholder={
                       isDesignsLoading 
                         ? "Loading designs..." 
-                        : formData.designType 
-                          ? `Select ${formData.designType.toLowerCase()} design` 
-                          : "Select design type first"
+                        : "Select a design"
                     } />
                   </SelectTrigger>
                   <SelectContent>
-                    {formData.designType && (
-                      <>
-                        {isDesignsLoading ? (
-                          <SelectItem value="loading" disabled>
-                            Loading designs...
-                          </SelectItem>
-                        ) : designs.filter(design => design.type === formData.designType).length === 0 ? (
-                          <>
-                            <SelectItem value="no-designs" disabled>
-                              No {formData.designType.toLowerCase()} designs found
-                            </SelectItem>
-                          </>
-                        ) : (
-                          designs
-                            .filter(design => design.type === formData.designType)
-                            .map((design) => (
-                              <SelectItem key={design.id} value={design.id}>
-                                <div className="flex flex-col">
-                                  <span className="font-medium">{design.name}</span>
-                                  {design.category && (
-                                    <span className="text-xs text-gray-500">{design.category.name}</span>
-                                  )}
-                                </div>
-                              </SelectItem>
-                            ))
-                        )}
-                      </>
+                    {isDesignsLoading ? (
+                      <SelectItem value="loading" disabled>
+                        Loading designs...
+                      </SelectItem>
+                    ) : designs.length === 0 ? (
+                      <SelectItem value="no-designs" disabled>
+                        No designs available
+                      </SelectItem>
+                    ) : (
+                      designs.map((design) => (
+                        <SelectItem key={design.id} value={design.id}>
+                          <div className="flex items-center gap-3 w-full">
+                            {design.image && (
+                              <div className="flex-shrink-0">
+                                <img 
+                                  src={design.image} 
+                                  alt={design.name}
+                                  className="w-8 h-8 object-cover rounded border"
+                                />
+                              </div>
+                            )}
+                            <div className="flex flex-col flex-1 min-w-0">
+                              <span className="font-medium truncate">{design.name}</span>
+                              <div className="flex items-center gap-2 text-xs text-gray-500">
+                                <span className="truncate">Stitch: ₹{design.stitchCost?.toLocaleString() || '0'}</span>
+                                {design.category && (
+                                  <span className="truncate">{design.category.name}</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </SelectItem>
+                      ))
                     )}
                   </SelectContent>
                 </Select>
-                {formData.designType && !isDesignsLoading && designs.filter(design => design.type === formData.designType).length === 0 && (
-                  <div className="mt-2 text-sm text-gray-600">
-                    No {formData.designType.toLowerCase()} designs available. 
-                    <Link 
-                      href="/admin/custom-design/designs" 
-                      target="_blank"
-                      className="text-pink-600 hover:text-pink-700 underline ml-1"
-                    >
-                      Create one first
-                    </Link>
-                  </div>
-                )}
               </div>
             </div>
+
+            {/* Design Preview Section */}
+            {formData.designId && (
+              <div className="mt-3 p-3 bg-gray-50 rounded-lg border">
+                <div className="flex items-start gap-3">
+                  {(() => {
+                    const selectedDesign = designs.find(d => d.id === formData.designId);
+                    return selectedDesign ? (
+                      <>
+                        {selectedDesign.image && (
+                          <div className="flex-shrink-0">
+                            <img 
+                              src={selectedDesign.image} 
+                              alt={selectedDesign.name}
+                              className="w-16 h-16 object-cover rounded-lg border"
+                            />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-medium text-sm text-gray-900">{selectedDesign.name}</h4>
+                          <div className="flex items-center gap-2 mt-1">
+                            <Badge variant="secondary" className="text-xs">
+                              Stitch: ₹{selectedDesign.stitchCost?.toLocaleString() || '0'}
+                            </Badge>
+                            {selectedDesign.category && (
+                              <Badge variant="outline" className="text-xs">
+                                {selectedDesign.category.name}
+                              </Badge>
+                            )}
+                          </div>
+                          {selectedDesign.description && (
+                            <p className="text-xs text-gray-600 mt-2 line-clamp-2">
+                              {selectedDesign.description}
+                            </p>
+                          )}
+                        </div>
+                      </>
+                    ) : null;
+                  })()}
+                </div>
+              </div>
+            )}
+
+            {!isDesignsLoading && designs.length === 0 && (
+              <div className="text-sm text-gray-600">
+                No designs available. 
+                <Link 
+                  href="/admin/custom-design/designs" 
+                  target="_blank"
+                  className="text-pink-600 hover:text-pink-700 underline ml-1"
+                >
+                  Create one first
+                </Link>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -837,7 +903,7 @@ export default function AdminModelsPage() {
               </Button>
               <Button 
                 onClick={handleSave} 
-                disabled={!formData.name || !formData.price || parseFloat(formData.price) <= 0 || !formData.designType || !formData.designId}
+                disabled={!formData.name || !formData.modelType || !formData.price || parseFloat(formData.price) <= 0 || !formData.designId}
               >
                 <Save className="h-4 w-4 mr-2" />
                 Save

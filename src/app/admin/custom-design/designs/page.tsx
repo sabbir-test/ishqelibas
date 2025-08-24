@@ -50,6 +50,7 @@ interface BlouseDesign {
   type: "FRONT" | "BACK"
   image?: string
   description?: string
+  stitchCost: number
   isActive: boolean
   createdAt: string
   updatedAt: string
@@ -67,9 +68,9 @@ export default function AdminDesignsPage() {
   const [editingDesign, setEditingDesign] = useState<BlouseDesign | null>(null)
   const [formData, setFormData] = useState({
     name: "",
-    type: "FRONT" as "FRONT" | "BACK",
     image: "",
     description: "",
+    stitchCost: "",
     isActive: true
   })
 
@@ -110,9 +111,9 @@ export default function AdminDesignsPage() {
     setEditingDesign(design)
     setFormData({
       name: design.name,
-      type: design.type,
       image: design.image || "",
       description: design.description || "",
+      stitchCost: design.stitchCost.toString(),
       isActive: design.isActive
     })
     setIsDialogOpen(true)
@@ -122,9 +123,9 @@ export default function AdminDesignsPage() {
     setEditingDesign(null)
     setFormData({
       name: "",
-      type: "FRONT",
       image: "",
       description: "",
+      stitchCost: "",
       isActive: true
     })
     setIsDialogOpen(true)
@@ -135,12 +136,20 @@ export default function AdminDesignsPage() {
       const url = editingDesign ? `/api/admin/blouse-designs/${editingDesign.id}` : "/api/admin/blouse-designs"
       const method = editingDesign ? "PUT" : "POST"
       
+      const payload = {
+        name: formData.name,
+        image: formData.image || null,
+        description: formData.description || null,
+        stitchCost: parseFloat(formData.stitchCost) || 0,
+        isActive: formData.isActive
+      }
+      
       const response = await fetch(url, {
         method,
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(payload)
       })
 
       if (response.ok) {
@@ -280,7 +289,7 @@ export default function AdminDesignsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
-                  <TableHead>Type</TableHead>
+                  <TableHead>Stitch Cost</TableHead>
                   <TableHead>Description</TableHead>
                   <TableHead>Variants</TableHead>
                   <TableHead>Status</TableHead>
@@ -293,11 +302,8 @@ export default function AdminDesignsPage() {
                   <TableRow key={design.id}>
                     <TableCell className="font-medium">{design.name}</TableCell>
                     <TableCell>
-                      <Badge 
-                        variant={design.type === "FRONT" ? "default" : "secondary"}
-                        className={design.type === "FRONT" ? "bg-blue-100 text-blue-800" : "bg-purple-100 text-purple-800"}
-                      >
-                        {design.type}
+                      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                        ₹{design.stitchCost.toLocaleString()}
                       </Badge>
                     </TableCell>
                     <TableCell className="max-w-xs truncate">
@@ -384,18 +390,16 @@ export default function AdminDesignsPage() {
               />
             </div>
             <div>
-              <Label htmlFor="type">Design Type</Label>
-              <Select value={formData.type} onValueChange={(value: "FRONT" | "BACK") => 
-                setFormData(prev => ({ ...prev, type: value }))
-              }>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="FRONT">Front Design</SelectItem>
-                  <SelectItem value="BACK">Back Design</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label htmlFor="stitchCost">Stitch Cost (₹)</Label>
+              <Input
+                id="stitchCost"
+                type="number"
+                min="0"
+                step="0.01"
+                value={formData.stitchCost}
+                onChange={(e) => setFormData(prev => ({ ...prev, stitchCost: e.target.value }))}
+                placeholder="e.g., 299"
+              />
             </div>
             <div>
               <Label htmlFor="description">Description</Label>

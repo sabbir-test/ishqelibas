@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast"
 export default function LoginPage() {
   const [email, setEmail] = useState("demo@example.com")
   const [password, setPassword] = useState("demo123")
+  const [isAdminLogin, setIsAdminLogin] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
@@ -38,8 +39,12 @@ export default function LoginPage() {
           description: `Welcome back, ${data.user.name}!`,
         })
         
-        // Redirect to custom design page after successful login
-        router.push("/custom-design")
+        // Redirect based on user role
+        if (data.user.role === "ADMIN") {
+          router.push("/admin")
+        } else {
+          router.push("/custom-design")
+        }
       } else {
         toast({
           title: "Login failed",
@@ -66,13 +71,61 @@ export default function LoginPage() {
           <div className="flex items-start space-x-3">
             <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
             <div>
-              <h3 className="font-medium text-blue-900">Demo Account</h3>
+              <h3 className="font-medium text-blue-900">Demo Accounts</h3>
               <p className="text-sm text-blue-700 mt-1">
-                Use the credentials below to test the custom design blouse purchase flow:
+                Use the credentials below to test the application:
               </p>
-              <div className="mt-2 text-xs font-mono bg-blue-100 p-2 rounded">
-                Email: demo@example.com<br />
-                Password: demo123
+              
+              {/* Toggle between user and admin demo */}
+              <div className="mt-3">
+                <div className="flex space-x-2 mb-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsAdminLogin(false)
+                      setEmail("demo@example.com")
+                      setPassword("demo123")
+                    }}
+                    className={`px-3 py-1 text-xs rounded-md ${
+                      !isAdminLogin 
+                        ? "bg-blue-600 text-white" 
+                        : "bg-gray-200 text-gray-700"
+                    }`}
+                  >
+                    User Demo
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsAdminLogin(true)
+                      setEmail("admin@ishqelibas.com")
+                      setPassword("admin123")
+                    }}
+                    className={`px-3 py-1 text-xs rounded-md ${
+                      isAdminLogin 
+                        ? "bg-blue-600 text-white" 
+                        : "bg-gray-200 text-gray-700"
+                    }`}
+                  >
+                    Admin Demo
+                  </button>
+                </div>
+                
+                <div className="text-xs font-mono bg-blue-100 p-2 rounded">
+                  {isAdminLogin ? (
+                    <>
+                      <strong>Admin Account:</strong><br />
+                      Email: admin@ishqelibas.com<br />
+                      Password: admin123
+                    </>
+                  ) : (
+                    <>
+                      <strong>User Account:</strong><br />
+                      Email: demo@example.com<br />
+                      Password: demo123
+                    </>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -84,7 +137,7 @@ export default function LoginPage() {
               Welcome to Ishq-e-Libas
             </CardTitle>
             <CardDescription className="text-gray-600">
-              Sign in to access custom blouse design
+              {isAdminLogin ? "Admin Sign In" : "Sign in to access custom blouse design"}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -132,10 +185,10 @@ export default function LoginPage() {
 
               <Button
                 type="submit"
-                className="w-full bg-pink-600 hover:bg-pink-700"
+                className={`w-full ${isAdminLogin ? "bg-purple-600 hover:bg-purple-700" : "bg-pink-600 hover:bg-pink-700"}`}
                 disabled={isLoading}
               >
-                {isLoading ? "Signing in..." : "Sign In"}
+                {isLoading ? "Signing in..." : isAdminLogin ? "Admin Sign In" : "Sign In"}
               </Button>
             </form>
 

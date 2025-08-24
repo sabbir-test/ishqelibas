@@ -24,18 +24,19 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { name, type, image, description, isActive, categoryId } = await request.json()
+    const { name, image, description, stitchCost, isActive, categoryId } = await request.json()
 
-    if (!name || !type) {
+    if (!name) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
     const design = await db.blouseDesign.create({
       data: {
         name,
-        type,
+        type: "FRONT", // Default to FRONT since type is no longer user-selectable
         image: image || null,
         description: description || null,
+        stitchCost: stitchCost || 0,
         isActive: isActive ?? true,
         categoryId: categoryId || null
       },

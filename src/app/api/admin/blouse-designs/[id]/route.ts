@@ -4,15 +4,15 @@ import { db } from "@/lib/db"
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const { id } = params
-    const { name, type, image, description, isActive, categoryId } = await request.json()
+    const { name, image, description, stitchCost, isActive, categoryId } = await request.json()
 
     const design = await db.blouseDesign.update({
       where: { id },
       data: {
         name,
-        type,
         image: image || null,
         description: description || null,
+        stitchCost: stitchCost || 0,
         isActive,
         categoryId: categoryId || null
       },
