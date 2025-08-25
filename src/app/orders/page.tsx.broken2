@@ -21,6 +21,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { 
   ShoppingBag,
@@ -85,18 +86,6 @@ export default function OrdersPage() {
   const [cancellationReason, setCancellationReason] = useState("")
   const [isCancelling, setIsCancelling] = useState(false)
 
-  // Predefined cancellation reasons
-  const cancellationReasons = [
-    "Wrong size",
-    "Duplicate order", 
-    "Found cheaper",
-    "Quality concern",
-    "No longer needed",
-    "Shipping delay",
-    "Incorrect item",
-    "Other"
-  ]
-
   useEffect(() => {
     if (authState.user) {
       loadOrders()
@@ -115,53 +104,41 @@ export default function OrdersPage() {
       }
 
       const response = await fetch(`/api/orders?userId=${authState.user.id}&_t=${Date.now()}`, {
+        headers: {
         credentials: 'include'
+      }
+        }
       })
       
       if (response.ok) {
         const data = await response.json()
         
         // Transform database orders to match our interface
-        const transformedOrders: Order[] = data.orders.map((order: any) => {
-          const shippingAddress = JSON.parse(order.shippingAddress || '{}');
-          
-          return {
-            id: order.id,
-            orderNumber: order.orderNumber,
-            status: order.status.toLowerCase(),
-            total: order.total,
-            subtotal: order.subtotal,
-            shipping: order.shipping,
-            discount: order.discount,
-            createdAt: order.createdAt,
-            updatedAt: order.updatedAt,
-            items: order.orderItems.map((item: any) => {
-              let imageUrl = '/api/placeholder/300/400';
-              
-              // Handle custom blouse design with better fallback
-              if (item.productId === 'custom-blouse') {
-                imageUrl = '/images/custom-blouse-default.svg';
-              } else if (item.product?.images) {
-                imageUrl = item.product.images.split(',')[0];
-              }
-              
-              return {
-                id: item.id,
-                name: item.product?.name || 'Custom Product',
-                price: item.price,
-                quantity: item.quantity,
-                image: imageUrl,
-                size: item.size,
-                color: item.color
-              };
-            }),
-            shippingAddress: shippingAddress,
-            paymentMethod: order.paymentMethod,
-            estimatedDelivery: order.estimatedDelivery
-          };
-        });
+        const transformedOrders: Order[] = data.orders.map((order: any) => ({
+          id: order.id,
+          orderNumber: order.orderNumber,
+          status: order.status.toLowerCase(),
+          total: order.total,
+          subtotal: order.subtotal,
+          shipping: order.shipping,
+          discount: order.discount,
+          createdAt: order.createdAt,
+          updatedAt: order.updatedAt,
+          items: order.orderItems.map((item: any) => ({
+            id: item.id,
+            name: item.product?.name || 'Custom Product',
+            price: item.price,
+            quantity: item.quantity,
+            image: item.product?.images?.split(',')[0] || '/api/placeholder/300/400',
+            size: item.size,
+            color: item.color
+          })),
+          shippingAddress: JSON.parse(order.shippingAddress || '{}'),
+          paymentMethod: order.paymentMethod,
+          estimatedDelivery: order.estimatedDelivery
+        }))
         
-        setOrders(transformedOrders);
+        setOrders(transformedOrders)
       } else {
         console.error('Failed to load orders:', response.status)
         setOrders([])
@@ -232,8 +209,8 @@ export default function OrdersPage() {
   }
 
   const confirmCancelOrder = async () => {
-    if (!cancelOrder || !cancellationReason) {
-      alert("Please select a reason for cancellation")
+    if (!cancelOrder || !cancellationReason.trim()) {
+      alert("Please provide a reason for cancellation")
       return
     }
 
@@ -242,9 +219,10 @@ export default function OrdersPage() {
       const response = await fetch(`/api/orders/${cancelOrder.id}/cancel`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+        credentials: 'include'
+      }
         },
-        credentials: 'include',
         body: JSON.stringify({ reason: cancellationReason })
       })
 
@@ -272,42 +250,15 @@ export default function OrdersPage() {
   if (!authState.user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center max-w-md mx-auto p-6">
+        <div className="text-center">
           <div className="text-gray-400 text-6xl mb-4">🔒</div>
           <h2 className="text-2xl font-bold text-gray-900 mb-4">Please Sign In</h2>
-          <p className="text-gray-600 mb-6">
-            You need to be signed in to view your orders. Please log in to see your order history.
-          </p>
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-            <h3 className="font-semibold text-blue-900 mb-2">Demo Account</h3>
-            <p className="text-sm text-blue-700 mb-2">
-              Use the following credentials to test the orders functionality:
-            </p>
-            <div className="text-left bg-white rounded p-3 text-sm">
-              <p><strong>Email:</strong> demo@example.com</p>
-              <p><strong>Password:</strong> demo123</p>
-            </div>
-          </div>
-          <div className="space-y-3">
-            <Link href="/">
-              <Button className="bg-pink-600 hover:bg-pink-700 w-full">
-                Go to Home to Login
-              </Button>
-            </Link>
-            <Button 
-              variant="outline" 
-              className="w-full"
-              onClick={() => {
-                // Open the auth modal by clicking the user icon
-                const userIcon = document.querySelector('button[aria-label="User account"]');
-                if (userIcon) {
-                  (userIcon as HTMLElement).click();
-                }
-              }}
-            >
-              Open Login Dialog
+          <p className="text-gray-600 mb-6">You need to be signed in to view your orders.</p>
+          <Link href="/">
+            <Button className="bg-pink-600 hover:bg-pink-700">
+              Go to Home
             </Button>
-          </div>
+          </Link>
         </div>
       </div>
     )
@@ -461,11 +412,7 @@ export default function OrdersPage() {
                         <div>
                           <p className="text-gray-500">Delivery Address</p>
                           <p className="font-medium text-gray-900">
-                            {order.shippingAddress.address ? `${order.shippingAddress.address}, ` : ''}
-                            {order.shippingAddress.city && order.shippingAddress.state 
-                              ? `${order.shippingAddress.city}, ${order.shippingAddress.state}`
-                              : order.shippingAddress.city || order.shippingAddress.state || 'Address not available'
-                            }
+                            {order.shippingAddress.city}, {order.shippingAddress.state}
                           </p>
                         </div>
                       </div>
@@ -481,18 +428,12 @@ export default function OrdersPage() {
                         <Eye className="h-4 w-4 mr-2" />
                         View Details
                       </Button>
-                      <Button 
-                        variant="outline" 
-                        className="w-full"
-                        onClick={() => {
-                          // Open invoice in new window for download/print
-                          const invoiceUrl = `/api/orders/${order.id}/invoice`
-                          window.open(invoiceUrl, '_blank')
-                        }}
-                      >
-                        <Download className="h-4 w-4 mr-2" />
-                        Download Invoice
-                      </Button>
+                      {order.status === 'delivered' && (
+                        <Button variant="outline" className="w-full">
+                          <Download className="h-4 w-4 mr-2" />
+                          Invoice
+                        </Button>
+                      )}
                       {['processing', 'shipped'].includes(order.status) && (
                         <>
                           <Button variant="outline" className="w-full">
@@ -522,18 +463,13 @@ export default function OrdersPage() {
                               <div className="space-y-4">
                                 <div>
                                   <Label htmlFor="reason">Reason for Cancellation</Label>
-                                  <Select value={cancellationReason} onValueChange={setCancellationReason}>
-                                    <SelectTrigger className="mt-2">
-                                      <SelectValue placeholder="Select a reason for cancellation" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {cancellationReasons.map((reason) => (
-                                        <SelectItem key={reason} value={reason}>
-                                          {reason}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
+                                  <Textarea
+                                    id="reason"
+                                    placeholder="Please provide a reason for cancelling this order..."
+                                    value={cancellationReason}
+                                    onChange={(e) => setCancellationReason(e.target.value)}
+                                    className="mt-2"
+                                  />
                                 </div>
                                 <DialogFooter>
                                   <Button 
@@ -548,7 +484,7 @@ export default function OrdersPage() {
                                   <Button 
                                     variant="destructive" 
                                     onClick={confirmCancelOrder}
-                                    disabled={!cancellationReason || isCancelling}
+                                    disabled={!cancellationReason.trim() || isCancelling}
                                   >
                                     {isCancelling ? 'Cancelling...' : 'Cancel Order'}
                                   </Button>

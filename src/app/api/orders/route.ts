@@ -130,7 +130,12 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: "desc" }
     })
 
-    return NextResponse.json({ orders })
+    // Add cache-busting headers
+    const response = NextResponse.json({ orders })
+    response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate')
+    response.headers.set('Pragma', 'no-cache')
+    response.headers.set('Expires', '0')
+    return response
   } catch (error) {
     console.error("Error fetching orders:", error)
     return NextResponse.json({ error: "Failed to fetch orders" }, { status: 500 })

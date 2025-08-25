@@ -43,7 +43,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refreshUser = async () => {
     try {
-      const response = await fetch("/api/auth/me")
+      const response = await fetch("/api/auth/me", {
+        credentials: 'include'
+      })
       if (response.ok) {
         const { user } = await response.json()
         setState(prev => ({ ...prev, user, isLoading: false }))
@@ -66,6 +68,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         headers: {
           "Content-Type": "application/json"
         },
+        credentials: 'include',
         body: JSON.stringify({ email, password })
       })
 
@@ -131,7 +134,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = async () => {
     try {
       await fetch("/api/auth/logout", {
-        method: "POST"
+        method: "POST",
+        credentials: 'include'
       })
 
       setState(prev => ({ ...prev, user: null }))

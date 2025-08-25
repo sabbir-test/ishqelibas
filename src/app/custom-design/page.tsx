@@ -544,11 +544,34 @@ export default function CustomDesignPage() {
     return Object.values(measurements).every(value => value.trim() !== "")
   }
 
+  const isProfessionalMeasurementSelected = () => {
+    return design.appointmentType && design.appointmentDate
+  }
+
   const handleAddToCart = async () => {
     if (!design.fabric) {
       toast({
         title: "Fabric required",
         description: "Please select a fabric for your custom blouse.",
+        variant: "destructive"
+      })
+      return
+    }
+
+    if (!design.selectedModels.frontModel && !design.selectedModels.backModel) {
+      toast({
+        title: "Design required",
+        description: "Please select at least one model (front or back) for your custom blouse.",
+        variant: "destructive"
+      })
+      return
+    }
+
+    // Check measurements OR professional appointment
+    if (!isProfessionalMeasurementSelected() && !validateMeasurements()) {
+      toast({
+        title: "Measurements required",
+        description: "Please fill in all required measurement fields or book a professional measurement appointment.",
         variant: "destructive"
       })
       return
