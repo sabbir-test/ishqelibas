@@ -212,10 +212,13 @@ export default function CustomDesignPage() {
   const [error, setError] = useState<string | null>(null)
   const [modelsPage, setModelsPage] = useState(1)
   const [hasMoreModels, setHasMoreModels] = useState(true)
+  const [showCollectionCard, setShowCollectionCard] = useState(true)
   const MODES_PER_PAGE = 12
   const [showVariantsModal, setShowVariantsModal] = useState(false)
   const [selectedDesignForVariants, setSelectedDesignForVariants] = useState<BlouseDesign | null>(null)
   const [variantsModalDesignType, setVariantsModalDesignType] = useState<"front" | "back">("front")
+  const [manualMeasurementsEnabled, setManualMeasurementsEnabled] = useState(true)
+  const [isLoadingConfig, setIsLoadingConfig] = useState(false)
   
   const { addItem } = useCart()
   const { toast } = useToast()
@@ -233,12 +236,62 @@ export default function CustomDesignPage() {
   useEffect(() => {
     // Only load data when needed
     if (currentStep === "fabric") {
+      fetchFabricCollectionSetting()
       fetchFabrics()
     } else if (currentStep === "design") {
       fetchDesigns()
       fetchModels()
+    } else if (currentStep === "measurements") {
+      fetchManualMeasurementsSetting()
     }
   }, [currentStep])
+
+  const fetchFabricCollectionSetting = async () => {
+    try {
+      const response = await fetch("/api/config?key=fabric_collection_enabled")
+      if (response.ok) {
+        const data = await response.json()
+        // Handle both response formats: { config: { value } } and { key, value }
+        if (data.config) {
+          setShowCollectionCard(data.config.value === 'true')
+        } else if (data.value !== undefined) {
+          setShowCollectionCard(data.value === 'true')
+        } else {
+          // Default to showing the collection card
+          setShowCollectionCard(true)
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching fabric collection setting:", error)
+      // Default to showing the collection card on error
+      setShowCollectionCard(true)
+    }
+  }
+
+  const fetchManualMeasurementsSetting = async () => {
+    setIsLoadingConfig(true)
+    try {
+      const response = await fetch("/api/config?key=manual_measurements_enabled")
+      if (response.ok) {
+        const data = await response.json()
+        // Handle both response formats: { config: { value } } and { key, value }
+        if (data.config) {
+          setManualMeasurementsEnabled(data.config.value === 'true')
+        } else if (data.value !== undefined) {
+          setManualMeasurementsEnabled(data.value === 'true')
+        } else {
+          // Default to enabled if no value found
+          setManualMeasurementsEnabled(true)
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching manual measurements setting:", error)
+      // Default to enabled on error
+      setManualMeasurementsEnabled(true)
+    } finally {
+      setIsLoadingConfig(false)
+    }
+  }
 
   const fetchFabrics = async () => {
     // Check cache first
@@ -696,94 +749,96 @@ export default function CustomDesignPage() {
             
             {/* Fabric Options */}
             <div className="max-w-6xl mx-auto">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <div className={`grid ${showCollectionCard ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1'} gap-8`}>
                 {/* Option 1: Choose from Collection */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center">
-                      <Palette className="h-5 w-5 mr-2" />
-                      Choose From Our Collection
-                    </CardTitle>
-                    <CardDescription>
-                      Select from our premium fabric collection
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    {fabrics.length === 0 ? (
-                      <div className="text-center py-12">
-                        <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                        <p className="text-gray-600">No fabrics available at the moment.</p>
-                      </div>
-                    ) : (
-                      <div className="space-y-4 max-h-96 overflow-y-auto">
-                        {fabrics.map((fabric) => (
-                          <div
-                            key={fabric.id}
-                            className={`p-4 border rounded-lg cursor-pointer transition-all duration-200 hover:shadow-md ${
-                              design.fabric?.id === fabric.id ? "ring-2 ring-pink-600 bg-pink-50" : "border-gray-200"
-                            }`}
-                            onClick={() => {
-                              setDesign(prev => ({ 
-                                ...prev, 
-                                fabric: {
-                                  ...fabric,
-                                  isOwnFabric: false
-                                }
-                              }))
-                            }}
-                          >
-                            <div className="flex items-center space-x-4">
-                              <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                                {fabric.image ? (
-                                  <img 
-                                    src={fabric.image} 
-                                    alt={fabric.name}
-                                    className="w-full h-full object-cover rounded-lg"
-                                  />
-                                ) : (
-                                  <div 
-                                    className="w-12 h-12 rounded border"
-                                    style={{ backgroundColor: fabric.color.toLowerCase() }}
-                                  />
-                                )}
-                              </div>
-                              <div className="flex-1">
-                                <h3 className="font-semibold text-lg">{fabric.name}</h3>
-                                <p className="text-sm text-gray-600 mb-1">{fabric.type}</p>
-                                <div className="flex items-center justify-between">
-                                  <div className="flex items-center space-x-2">
+                {showCollectionCard && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center">
+                        <Palette className="h-5 w-5 mr-2" />
+                        Choose From Our Collection
+                      </CardTitle>
+                      <CardDescription>
+                        Select from our premium fabric collection
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {fabrics.length === 0 ? (
+                        <div className="text-center py-12">
+                          <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                          <p className="text-gray-600">No fabrics available at the moment.</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-4 max-h-96 overflow-y-auto">
+                          {fabrics.map((fabric) => (
+                            <div
+                              key={fabric.id}
+                              className={`p-4 border rounded-lg cursor-pointer transition-all duration-200 hover:shadow-md ${
+                                design.fabric?.id === fabric.id ? "ring-2 ring-pink-600 bg-pink-50" : "border-gray-200"
+                              }`}
+                              onClick={() => {
+                                setDesign(prev => ({ 
+                                  ...prev, 
+                                  fabric: {
+                                    ...fabric,
+                                    isOwnFabric: false
+                                  }
+                                }))
+                              }}
+                            >
+                              <div className="flex items-center space-x-4">
+                                <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                                  {fabric.image ? (
+                                    <img 
+                                      src={fabric.image} 
+                                      alt={fabric.name}
+                                      className="w-full h-full object-cover rounded-lg"
+                                    />
+                                  ) : (
                                     <div 
-                                      className="w-4 h-4 rounded border"
+                                      className="w-12 h-12 rounded border"
                                       style={{ backgroundColor: fabric.color.toLowerCase() }}
                                     />
-                                    <span className="text-sm text-gray-600">{fabric.color}</span>
-                                  </div>
-                                  <p className="text-lg font-bold text-pink-600">
-                                    ₹{fabric.pricePerMeter}/m
-                                  </p>
+                                  )}
                                 </div>
+                                <div className="flex-1">
+                                  <h3 className="font-semibold text-lg">{fabric.name}</h3>
+                                  <p className="text-sm text-gray-600 mb-1">{fabric.type}</p>
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center space-x-2">
+                                      <div 
+                                        className="w-4 h-4 rounded border"
+                                        style={{ backgroundColor: fabric.color.toLowerCase() }}
+                                      />
+                                      <span className="text-sm text-gray-600">{fabric.color}</span>
+                                    </div>
+                                    <p className="text-lg font-bold text-pink-600">
+                                      ₹{fabric.pricePerMeter}/m
+                                    </p>
+                                  </div>
+                                </div>
+                                {design.fabric?.id === fabric.id && (
+                                  <CheckCircle className="h-5 w-5 text-pink-600" />
+                                )}
                               </div>
-                              {design.fabric?.id === fabric.id && (
-                                <CheckCircle className="h-5 w-5 text-pink-600" />
-                              )}
                             </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    {design.fabric && !design.fabric.isOwnFabric && (
-                      <div className="mt-6 pt-4 border-t">
-                        <Button 
-                          onClick={() => setCurrentStep("design")}
-                          className="w-full bg-pink-600 hover:bg-pink-700"
-                        >
-                          Continue to Design Selection
-                          <ArrowRight className="h-4 w-4 ml-2" />
-                        </Button>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
+                          ))}
+                        </div>
+                      )}
+                      {design.fabric && !design.fabric.isOwnFabric && (
+                        <div className="mt-6 pt-4 border-t">
+                          <Button 
+                            onClick={() => setCurrentStep("design")}
+                            className="w-full bg-pink-600 hover:bg-pink-700"
+                          >
+                            Continue to Design Selection
+                            <ArrowRight className="h-4 w-4 ml-2" />
+                          </Button>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
 
                 {/* Option 2: Provide Own Fabric */}
                 <Card>
@@ -1155,18 +1210,25 @@ export default function CustomDesignPage() {
 
             {/* Measurement Options */}
             <div className="max-w-4xl mx-auto">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Manual Measurements */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center">
-                      <Ruler className="h-5 w-5 mr-2" />
-                      Enter Measurements Manually
-                    </CardTitle>
-                    <CardDescription>
-                      Provide your measurements for a perfect fit
-                    </CardDescription>
-                  </CardHeader>
+              {isLoadingConfig ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-600 mr-3"></div>
+                  <span className="text-gray-600">Loading configuration...</span>
+                </div>
+              ) : (
+                <div className={`grid ${manualMeasurementsEnabled ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1'} gap-6`}>
+                  {/* Manual Measurements - Only show if enabled */}
+                  {manualMeasurementsEnabled && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center">
+                        <Ruler className="h-5 w-5 mr-2" />
+                        Enter Measurements Manually
+                      </CardTitle>
+                      <CardDescription>
+                        Provide your measurements for a perfect fit
+                      </CardDescription>
+                    </CardHeader>
                   <CardContent className="p-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
@@ -1266,6 +1328,33 @@ export default function CustomDesignPage() {
                     </div>
                   </CardContent>
                 </Card>
+                )}
+
+                {/* Show message when manual measurements are disabled */}
+                {!manualMeasurementsEnabled && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center">
+                        <Ruler className="h-5 w-5 mr-2" />
+                        Manual Measurements Unavailable
+                      </CardTitle>
+                      <CardDescription>
+                        Manual measurement entry is currently disabled
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-center py-6">
+                        <div className="text-gray-400 text-5xl mb-4">📏</div>
+                        <p className="text-gray-600 mb-4">
+                          Manual measurement entry has been temporarily disabled by our administration team.
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          Please book a professional measurement appointment to proceed with your custom blouse design.
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
 
                 {/* Professional Measurement */}
                 <Card>
@@ -1294,8 +1383,7 @@ export default function CustomDesignPage() {
                         </div>
                       </div>
 
-                      <div>
-                        <Label>Appointment Type</Label>
+                      <Label>Appointment Type</Label>
                         <div className="grid grid-cols-2 gap-3 mt-2">
                           <Button
                             variant={design.appointmentType === "VIRTUAL" ? "default" : "outline"}
@@ -1314,7 +1402,6 @@ export default function CustomDesignPage() {
                             In-Person
                           </Button>
                         </div>
-                      </div>
 
                       {design.appointmentType && (
                         <div className="space-y-4">
@@ -1395,7 +1482,7 @@ export default function CustomDesignPage() {
                   </CardContent>
                 </Card>
               </div>
-            </div>
+            )}
           </div>
         )}
 

@@ -8,8 +8,9 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Calendar, Clock, User, Phone, Mail, MapPin, CheckCircle, XCircle, Clock as ClockIcon, Ruler, Save, Plus, Search } from 'lucide-react'
+import { Calendar, Clock, User, Phone, Mail, MapPin, CheckCircle, XCircle, Clock as ClockIcon, Ruler, Save, Plus, Search, Settings } from 'lucide-react'
 import { format } from 'date-fns'
+import ConfigToggle from '@/components/ConfigToggle'
 
 interface Appointment {
   id: string
@@ -634,6 +635,22 @@ export default function AdminAppointmentsPage() {
             </div>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Configuration Section */}
+      <div className="space-y-4">
+        <h2 className="text-xl font-semibold flex items-center gap-2">
+          <Settings className="h-5 w-5" />
+          Configuration Settings
+        </h2>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <ConfigToggle
+            configKey="manual_measurements_enabled"
+            title="Enable Manual Measurements Card"
+            description="Allow customers to enter measurements manually during custom blouse design"
+            defaultValue={true}
+          />
+        </div>
       </div>
 
       {/* Add Measurement Card */}

@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Progress } from "@/components/ui/progress"
 import RazorpayPayment from "@/components/payment/RazorpayPayment"
+import AddressSelector from "@/components/AddressSelector"
 import { 
   MapPin, 
   CreditCard, 
@@ -74,6 +75,7 @@ export default function CheckoutPage() {
     method: "razorpay"
   })
   const [isProcessing, setIsProcessing] = useState(false)
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null)
 
   const steps = [
     { id: "shipping", name: "Shipping", icon: MapPin },
@@ -98,6 +100,14 @@ export default function CheckoutPage() {
   const handleShippingSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     setCurrentStep("payment")
+  }
+
+  const handleContinueToPayment = () => {
+    setCurrentStep("payment")
+  }
+
+  const handleAddressSelect = (addressId: string | null) => {
+    setSelectedAddressId(addressId)
   }
 
   const handlePaymentSubmit = async (e: React.FormEvent) => {
@@ -141,6 +151,7 @@ export default function CheckoutPage() {
           zipCode: shippingInfo.zipCode,
           country: shippingInfo.country
         },
+        addressId: selectedAddressId,
         paymentInfo: {
           method: paymentInfo.method,
           notes: ""
@@ -161,8 +172,7 @@ export default function CheckoutPage() {
       const response = await fetch('/api/orders', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(orderData)
       })
@@ -269,113 +279,12 @@ export default function CheckoutPage() {
           {/* Main Content */}
           <div className="lg:col-span-2">
             {currentStep === "shipping" && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <MapPin className="h-5 w-5" />
-                    Shipping Information
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <form onSubmit={handleShippingSubmit} className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="firstName">First Name *</Label>
-                        <Input
-                          id="firstName"
-                          value={shippingInfo.firstName}
-                          onChange={(e) => setShippingInfo(prev => ({ ...prev, firstName: e.target.value }))}
-                          required
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="lastName">Last Name *</Label>
-                        <Input
-                          id="lastName"
-                          value={shippingInfo.lastName}
-                          onChange={(e) => setShippingInfo(prev => ({ ...prev, lastName: e.target.value }))}
-                          required
-                        />
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <Label htmlFor="email">Email Address *</Label>
-                      <Input
-                        id="email"
-                        type="email"
-                        value={shippingInfo.email}
-                        onChange={(e) => setShippingInfo(prev => ({ ...prev, email: e.target.value }))}
-                        required
-                      />
-                    </div>
-                    
-                    <div>
-                      <Label htmlFor="phone">Phone Number *</Label>
-                      <Input
-                        id="phone"
-                        type="tel"
-                        value={shippingInfo.phone}
-                        onChange={(e) => setShippingInfo(prev => ({ ...prev, phone: e.target.value }))}
-                        required
-                      />
-                    </div>
-                    
-                    <div>
-                      <Label htmlFor="address">Address *</Label>
-                      <Textarea
-                        id="address"
-                        value={shippingInfo.address}
-                        onChange={(e) => setShippingInfo(prev => ({ ...prev, address: e.target.value }))}
-                        required
-                      />
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div>
-                        <Label htmlFor="city">City *</Label>
-                        <Input
-                          id="city"
-                          value={shippingInfo.city}
-                          onChange={(e) => setShippingInfo(prev => ({ ...prev, city: e.target.value }))}
-                          required
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="state">State *</Label>
-                        <Input
-                          id="state"
-                          value={shippingInfo.state}
-                          onChange={(e) => setShippingInfo(prev => ({ ...prev, state: e.target.value }))}
-                          required
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="zipCode">ZIP Code *</Label>
-                        <Input
-                          id="zipCode"
-                          value={shippingInfo.zipCode}
-                          onChange={(e) => setShippingInfo(prev => ({ ...prev, zipCode: e.target.value }))}
-                          required
-                        />
-                      </div>
-                    </div>
-                    
-                    <div className="flex justify-end gap-4 pt-4">
-                      <Button type="button" variant="outline" asChild>
-                        <Link href="/shop">
-                          <ArrowLeft className="h-4 w-4 mr-2" />
-                          Back to Shopping
-                        </Link>
-                      </Button>
-                      <Button type="submit">
-                        Continue to Payment
-                        <ArrowRight className="h-4 w-4 ml-2" />
-                      </Button>
-                    </div>
-                  </form>
-                </CardContent>
-              </Card>
+              <AddressSelector
+                shippingInfo={shippingInfo}
+                onShippingInfoChange={setShippingInfo}
+                onAddressSelect={handleAddressSelect}
+                onContinue={handleContinueToPayment}
+              />
             )}
 
             {currentStep === "payment" && (

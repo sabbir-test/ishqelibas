@@ -36,8 +36,59 @@ model User {
   wishlistItems WishlistItem[]
   customOrders  CustomOrder[]
   measurements  Measurement[]
+  addresses     Address[]
+  configChangeLogs ConfigChangeLog[]
   
   @@map("users")
+}
+
+model Address {
+  id          String   @id @default(cuid())
+  userId      String
+  type        String   // 'Home', 'Work', 'Other'
+  firstName   String
+  lastName    String
+  email       String
+  phone       String
+  address     String
+  city        String
+  state       String
+  zipCode     String
+  country     String   @default("India")
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders      Order[]
+  
+  @@map("addresses")
+}
+
+model Configuration {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@map("configurations")
+}
+
+model ConfigurationLog {
+  id          String   @id @default(cuid())
+  configKey   String
+  oldValue    String?
+  newValue    String
+  action      String   // 'CREATE', 'UPDATE', 'DELETE'
+  adminId     String
+  adminName   String
+  createdAt   DateTime @default(now())
+  
+  @@map("configuration_logs")
 }
 
 model Product {
@@ -95,13 +146,14 @@ model Order {
   total         Float
   paymentMethod PaymentMethod
   paymentStatus PaymentStatus @default(PENDING)
-  shippingAddress String?
+  addressId     String?
   notes         String?
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
   
   // Relations
   user        User        @relation(fields: [userId], references: [id])
+  address     Address?    @relation(fields: [addressId], references: [id])
   orderItems  OrderItem[]
   
   @@map("orders")
@@ -353,4 +405,31 @@ enum CustomOrderStatus {
 enum DesignType {
   FRONT
   BACK
+}
+
+// Configuration model for admin settings
+model Config {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String
+  description String?
+  updatedAt   DateTime @updatedAt
+  updatedBy   String?
+  
+  @@map("configs")
+}
+
+// Configuration change log for auditing
+model ConfigChangeLog {
+  id          String   @id @default(cuid())
+  configKey   String
+  oldValue    String?
+  newValue    String
+  changedBy   String
+  changeType  String   // 'CREATE', 'UPDATE', 'DELETE'
+  createdAt   DateTime @default(now())
+  
+  user        User      @relation(fields: [changedBy], references: [id])
+  
+  @@map("config_change_logs")
 }

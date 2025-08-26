@@ -8,6 +8,7 @@ export async function POST(request: NextRequest) {
       items,
       shippingInfo,
       paymentInfo,
+      addressId,
       subtotal,
       tax,
       shipping,
@@ -20,6 +21,29 @@ export async function POST(request: NextRequest) {
 
     // Generate order number
     const orderNumber = `ORD-${Date.now().toString().slice(-6)}`
+
+    let finalAddressId = addressId
+
+    // If no addressId provided, create a new address from shippingInfo
+    if (!addressId) {
+      const newAddress = await db.address.create({
+        data: {
+          userId,
+          type: "Order Address",
+          firstName: shippingInfo.firstName,
+          lastName: shippingInfo.lastName,
+          email: shippingInfo.email,
+          phone: shippingInfo.phone,
+          address: shippingInfo.address,
+          city: shippingInfo.city,
+          state: shippingInfo.state,
+          zipCode: shippingInfo.zipCode,
+          country: shippingInfo.country || "India",
+          isDefault: false
+        }
+      })
+      finalAddressId = newAddress.id
+    }
 
     // Create order
     const order = await db.order.create({
@@ -34,8 +58,11 @@ export async function POST(request: NextRequest) {
         total,
         paymentMethod: paymentInfo.method.toUpperCase(),
         paymentStatus: "PENDING",
-        shippingAddress: JSON.stringify(shippingInfo),
+        addressId: finalAddressId,
         notes: paymentInfo.notes || ""
+      },
+      include: {
+        address: true
       }
     })
 

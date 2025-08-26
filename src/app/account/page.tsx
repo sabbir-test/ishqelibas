@@ -21,6 +21,7 @@ import {
   IndianRupee
 } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
+import AddressManager from "@/components/AddressManager"
 import Link from "next/link"
 
 interface Order {
@@ -35,12 +36,15 @@ interface Order {
 interface Address {
   id: string
   type: string
-  name: string
+  firstName: string
+  lastName: string
+  email: string
   phone: string
   address: string
   city: string
   state: string
-  pincode: string
+  zipCode: string
+  country: string
   isDefault: boolean
 }
 
@@ -71,30 +75,18 @@ export default function AccountPage() {
     setIsLoading(true)
     try {
       // Load orders
-      const ordersResponse = await fetch('/api/orders', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      })
+      const ordersResponse = await fetch('/api/orders')
       if (ordersResponse.ok) {
         const ordersData = await ordersResponse.json()
         setOrders(ordersData.orders || [])
       }
 
-      // Load addresses (mock data for now)
-      setAddresses([
-        {
-          id: "1",
-          type: "Home",
-          name: authState.user?.name || "User",
-          phone: authState.user?.phone || "+91 98765 43210",
-          address: "123 Fashion Street",
-          city: "Mumbai",
-          state: "Maharashtra",
-          pincode: "400001",
-          isDefault: true
-        }
-      ])
+      // Load addresses from API
+      const addressesResponse = await fetch('/api/addresses')
+      if (addressesResponse.ok) {
+        const addressesData = await addressesResponse.json()
+        setAddresses(addressesData.addresses || [])
+      }
     } catch (error) {
       console.error('Error loading account data:', error)
     } finally {
@@ -368,37 +360,13 @@ export default function AccountPage() {
               <TabsContent value="addresses">
                 <Card>
                   <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <CardTitle>Saved Addresses</CardTitle>
-                      <Button>
-                        <MapPin className="h-4 w-4 mr-2" />
-                        Add Address
-                      </Button>
-                    </div>
+                    <CardTitle>Saved Addresses</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {addresses.map((address) => (
-                        <div key={address.id} className="border rounded-lg p-4 relative">
-                          {address.isDefault && (
-                            <Badge className="absolute top-2 right-2 bg-green-100 text-green-800">
-                              Default
-                            </Badge>
-                          )}
-                          <h4 className="font-medium text-gray-900 mb-2">{address.type}</h4>
-                          <p className="text-sm text-gray-600 mb-1">{address.name}</p>
-                          <p className="text-sm text-gray-600 mb-1">{address.phone}</p>
-                          <p className="text-sm text-gray-600">{address.address}</p>
-                          <p className="text-sm text-gray-600">{address.city}, {address.state} - {address.pincode}</p>
-                          <div className="flex gap-2 mt-3">
-                            <Button variant="outline" size="sm">Edit</Button>
-                            {!address.isDefault && (
-                              <Button variant="outline" size="sm">Set Default</Button>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                    <AddressManager 
+                      addresses={addresses} 
+                      onAddressesChange={setAddresses} 
+                    />
                   </CardContent>
                 </Card>
               </TabsContent>

@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Switch } from "@/components/ui/switch"
 import { 
   Plus, 
   Edit, 
@@ -17,7 +18,9 @@ import {
   Eye,
   Upload,
   Save,
-  X
+  X,
+  Settings,
+  RefreshCw
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
@@ -47,12 +50,27 @@ export default function AdminFabricsPage() {
     pricePerMeter: 0,
     isActive: true
   })
+  const [enableCollectionCard, setEnableCollectionCard] = useState(true)
+  const [isLoadingConfig, setIsLoadingConfig] = useState(false)
 
   const { toast } = useToast()
 
   useEffect(() => {
     fetchFabrics()
+    fetchConfig()
   }, [])
+
+  const fetchConfig = async () => {
+    try {
+      const response = await fetch("/api/config/fabric-collection")
+      if (response.ok) {
+        const data = await response.json()
+        setEnableCollectionCard(data.enabled)
+      }
+    } catch (error) {
+      console.error("Error fetching config:", error)
+    }
+  }
 
   const fetchFabrics = async () => {
     setIsLoading(true)
@@ -195,6 +213,44 @@ export default function AdminFabricsPage() {
     }
   }
 
+  const handleToggleCollectionCard = async (enabled: boolean) => {
+    setIsLoadingConfig(true)
+    try {
+      const response = await fetch("/api/admin/configs", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          key: "enable_fabric_collection_card",
+          value: enabled.toString(),
+          description: "Enable/disable fabric collection card on custom design page"
+        })
+      })
+
+      if (response.ok) {
+        setEnableCollectionCard(enabled)
+        toast({
+          title: "Success",
+          description: `Fabric collection card ${enabled ? "enabled" : "disabled"} successfully`
+        })
+      } else {
+        throw new Error("Failed to update setting")
+      }
+    } catch (error) {
+      console.error("Error toggling collection card:", error)
+      toast({
+        title: "Error",
+        description: "Failed to update setting",
+        variant: "destructive"
+      })
+      // Revert the toggle on error
+      setEnableCollectionCard(!enabled)
+    } finally {
+      setIsLoadingConfig(false)
+    }
+  }
+
   const formatPrice = (price: number) => {
     return `₹${price.toLocaleString()}`
   }
@@ -241,6 +297,45 @@ export default function AdminFabricsPage() {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Configuration Card */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Settings className="h-5 w-5" />
+              Fabric Collection Settings
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <h3 className="text-lg font-medium">Enable Collection Card</h3>
+                <p className="text-sm text-gray-600">
+                  Control whether customers see the "Choose From Our Collection" option during custom blouse design
+                </p>
+              </div>
+              <div className="flex items-center space-x-3">
+                <span className={`text-sm font-medium ${enableCollectionCard ? 'text-green-600' : 'text-gray-500'}`}>
+                  {enableCollectionCard ? 'Visible to Customers' : 'Hidden from Customers'}
+                </span>
+                <Switch
+                  checked={enableCollectionCard}
+                  onCheckedChange={handleToggleCollectionCard}
+                  disabled={isLoadingConfig}
+                />
+                {isLoadingConfig && (
+                  <RefreshCw className="h-4 w-4 animate-spin text-gray-400" />
+                )}
+              </div>
+            </div>
+            <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+              <p className="text-xs text-gray-600">
+                <strong>When ON:</strong> Customers can choose from your fabric collection or provide their own fabric<br/>
+                <strong>When OFF:</strong> Customers can only provide their own fabric (collection card will be hidden)
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle>Fabrics ({filteredFabrics.length})</CardTitle>

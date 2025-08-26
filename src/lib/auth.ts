@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs"
 import jwt from "jsonwebtoken"
 import { db } from "@/lib/db"
+import { NextRequest } from "next/server"
 
 const JWT_SECRET = process.env.JWT_SECRET || "fallback-secret"
 
@@ -8,6 +9,16 @@ export interface JWTPayload {
   userId: string
   email: string
   role: string
+}
+
+export interface User {
+  id: string
+  email: string
+  name?: string
+  phone?: string
+  role: string
+  isActive: boolean
+  createdAt: Date
 }
 
 export function hashPassword(password: string): string {
@@ -116,5 +127,44 @@ export async function registerUser(userData: {
     }
   } catch (error) {
     throw error
+  }
+}
+export async function getAuth(request: NextRequest): Promise<User | null> {
+  try {
+    // Get token from cookie
+    const token = request.cookies.get("auth-token")?.value
+
+    if (!token) {
+      return null
+    }
+
+    // Verify token
+    const payload = verifyToken(token)
+    if (!payload) {
+      return null
+    }
+
+    // Get user from database
+    const user = await db.user.findUnique({
+      where: { id: payload.userId },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        phone: true,
+        role: true,
+        isActive: true,
+        createdAt: true
+      }
+    })
+
+    if (!user || !user.isActive) {
+      return null
+    }
+
+    return user
+  } catch (error) {
+    console.error("Get auth error:", error)
+    return null
   }
 }
