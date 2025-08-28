@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
+import { filterLegitimateOrders } from "@/lib/order-validation"
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('📋 Order creation started...')
+    
     const {
       userId,
       items,
@@ -15,12 +18,21 @@ export async function POST(request: NextRequest) {
       total
     } = await request.json()
 
+    console.log('📊 Order data received:', {
+      userId,
+      itemCount: items?.length,
+      total,
+      paymentMethod: paymentInfo?.method
+    })
+
     if (!userId || !items || !shippingInfo || !paymentInfo) {
+      console.log('❌ Missing required fields:', { userId: !!userId, items: !!items, shippingInfo: !!shippingInfo, paymentInfo: !!paymentInfo })
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
     // Generate order number
     const orderNumber = `ORD-${Date.now().toString().slice(-6)}`
+    console.log('🔢 Generated order number:', orderNumber)
 
     let finalAddressId = addressId
 
@@ -46,6 +58,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create order
+    console.log('💾 Creating order in database...')
     const order = await db.order.create({
       data: {
         orderNumber,
@@ -65,6 +78,7 @@ export async function POST(request: NextRequest) {
         address: true
       }
     })
+    console.log('✅ Order created successfully:', order.orderNumber)
 
     // Create order items
     for (const item of items) {
@@ -123,24 +137,55 @@ export async function POST(request: NextRequest) {
       where: { userId }
     })
 
+    console.log('🎉 Order creation completed:', order.orderNumber)
     return NextResponse.json({ order })
   } catch (error) {
-    console.error("Error creating order:", error)
-    return NextResponse.json({ error: "Failed to create order" }, { status: 500 })
+    console.error("❌ Error creating order:", error)
+    console.error("Error details:", {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    })
+    return NextResponse.json({ error: "Failed to create order", details: error.message }, { status: 500 })
   }
 }
 
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url)
-    const userId = searchParams.get("userId")
-
-    if (!userId) {
-      return NextResponse.json({ error: "User ID is required" }, { status: 400 })
+    // Get token from cookie and verify authentication
+    const token = request.cookies.get("auth-token")?.value
+    if (!token) {
+      return NextResponse.json({ error: "Authentication required" }, { status: 401 })
     }
 
-    const orders = await db.order.findMany({
-      where: { userId },
+    // Verify token and get authenticated user
+    const { verifyToken } = await import("@/lib/auth")
+    const payload = verifyToken(token)
+    if (!payload) {
+      return NextResponse.json({ error: "Invalid authentication" }, { status: 401 })
+    }
+
+    // Get authenticated user from database
+    const authenticatedUser = await db.user.findUnique({
+      where: { id: payload.userId },
+      select: { id: true, isActive: true }
+    })
+
+    if (!authenticatedUser || !authenticatedUser.isActive) {
+      return NextResponse.json({ error: "User not found or inactive" }, { status: 401 })
+    }
+
+    // Only allow users to fetch their own orders
+    const { searchParams } = new URL(request.url)
+    const requestedUserId = searchParams.get("userId")
+    
+    if (requestedUserId && requestedUserId !== authenticatedUser.id) {
+      return NextResponse.json({ error: "Unauthorized access to orders" }, { status: 403 })
+    }
+
+    // Fetch orders only for the authenticated user
+    const allOrders = await db.order.findMany({
+      where: { userId: authenticatedUser.id },
       include: {
         orderItems: {
           include: {
@@ -148,17 +193,36 @@ export async function GET(request: NextRequest) {
               select: {
                 id: true,
                 name: true,
-                images: true
+                images: true,
+                sku: true
               }
             }
+          }
+        },
+        user: {
+          select: {
+            email: true,
+            isActive: true
           }
         }
       },
       orderBy: { createdAt: "desc" }
     })
 
+    // Filter out dummy/demo orders using validation utility
+    const legitimateOrders = filterLegitimateOrders(allOrders)
+
+    // Remove user data from response for security
+    const sanitizedOrders = legitimateOrders.map(order => {
+      const { user, ...orderData } = order
+      return orderData
+    })
+
+    // Log filtering results for audit
+    console.log(`Orders filtered: ${allOrders.length} -> ${legitimateOrders.length} (removed ${allOrders.length - legitimateOrders.length} dummy/demo orders)`)
+
     // Add cache-busting headers
-    const response = NextResponse.json({ orders })
+    const response = NextResponse.json({ orders: sanitizedOrders })
     response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate')
     response.headers.set('Pragma', 'no-cache')
     response.headers.set('Expires', '0')

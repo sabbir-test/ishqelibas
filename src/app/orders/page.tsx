@@ -114,7 +114,7 @@ export default function OrdersPage() {
         throw new Error('User not authenticated')
       }
 
-      const response = await fetch(`/api/orders?userId=${authState.user.id}&_t=${Date.now()}`, {
+      const response = await fetch(`/api/orders?_t=${Date.now()}`, {
         credentials: 'include'
       })
       

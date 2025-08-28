@@ -82,10 +82,8 @@ export default function OrderDetailPage() {
         throw new Error('User not authenticated')
       }
 
-      const response = await fetch(`/api/orders/${orderId}?userId=${authState.user.id}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
+      const response = await fetch(`/api/orders/${orderId}`, {
+        credentials: 'include'
       })
       
       if (response.ok) {

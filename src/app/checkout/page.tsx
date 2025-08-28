@@ -174,6 +174,7 @@ export default function CheckoutPage() {
         headers: {
           'Content-Type': 'application/json'
         },
+        credentials: 'include', // Include auth cookies
         body: JSON.stringify(orderData)
       })
 
@@ -196,12 +197,26 @@ export default function CheckoutPage() {
         window.location.href = `/order-confirmation?orderId=${order.id}&orderNumber=${order.orderNumber}`
       } else {
         const errorData = await response.json()
-        console.error("❌ Order creation failed:", errorData)
-        throw new Error(errorData.error || 'Failed to create order')
+        console.error("❌ Order creation failed:", {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorData
+        })
+        
+        // Show specific error message to user
+        const errorMessage = errorData.error || `Failed to create order (${response.status})`
+        alert(`Order creation failed: ${errorMessage}`)
+        throw new Error(errorMessage)
       }
     } catch (error) {
-      console.error('Error placing order:', error)
-      alert('Failed to place order. Please try again.')
+      console.error('❌ Error placing order:', {
+        message: error.message,
+        stack: error.stack,
+        authUser: authState.user?.email
+      })
+      
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
+      alert(`Failed to place order: ${errorMessage}`)
     } finally {
       setIsProcessing(false)
     }
