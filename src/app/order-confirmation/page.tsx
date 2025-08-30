@@ -72,10 +72,8 @@ export default function OrderConfirmationPage() {
         throw new Error('User not authenticated')
       }
 
-      const response = await fetch(`/api/orders?userId=${authState.user.id}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
+      const response = await fetch(`/api/orders`, {
+        credentials: 'include'
       })
 
       if (response.ok) {
@@ -102,7 +100,17 @@ export default function OrderConfirmationPage() {
               size: item.size,
               color: item.color
             })),
-            shippingAddress: JSON.parse(foundOrder.shippingAddress || '{}'),
+            shippingAddress: foundOrder.address ? {
+              firstName: foundOrder.address.firstName || '',
+              lastName: foundOrder.address.lastName || '',
+              email: foundOrder.address.email || '',
+              phone: foundOrder.address.phone || '',
+              address: foundOrder.address.address || '',
+              city: foundOrder.address.city || '',
+              state: foundOrder.address.state || '',
+              zipCode: foundOrder.address.zipCode || '',
+              country: foundOrder.address.country || 'India'
+            } : {},
             paymentMethod: foundOrder.paymentMethod,
             estimatedDelivery: foundOrder.estimatedDelivery
           }

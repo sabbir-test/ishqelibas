@@ -371,9 +371,9 @@ export default function CheckoutPage() {
                   <RazorpayPayment
                     amount={total}
                     orderId={`order-${Date.now()}`}
-                    onSuccess={(paymentId) => {
+                    onSuccess={async (paymentId) => {
                       console.log("Payment successful:", paymentId)
-                      setCurrentStep("confirmation")
+                      await handlePlaceOrder()
                     }}
                     onError={(error) => {
                       console.error("Payment failed:", error)
@@ -405,13 +405,11 @@ export default function CheckoutPage() {
                           </ul>
                         </div>
                         <Button 
-                          onClick={() => {
-                            // Process COD order
-                            setCurrentStep("confirmation")
-                          }}
+                          onClick={handlePlaceOrder}
+                          disabled={isProcessing}
                           className="w-full bg-green-600 hover:bg-green-700"
                         >
-                          Confirm COD Order
+                          {isProcessing ? 'Processing...' : 'Confirm COD Order'}
                         </Button>
                       </div>
                     </CardContent>

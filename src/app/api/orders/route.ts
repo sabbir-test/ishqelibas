@@ -199,6 +199,7 @@ export async function GET(request: NextRequest) {
             }
           }
         },
+        address: true,
         user: {
           select: {
             email: true,

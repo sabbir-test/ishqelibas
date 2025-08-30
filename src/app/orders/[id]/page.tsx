@@ -110,7 +110,27 @@ export default function OrderDetailPage() {
               size: item.size,
               color: item.color
             })),
-            shippingAddress: JSON.parse(data.order.shippingAddress || '{}'),
+            shippingAddress: data.order.address ? {
+              firstName: data.order.address.firstName || '',
+              lastName: data.order.address.lastName || '',
+              name: `${data.order.address.firstName || ''} ${data.order.address.lastName || ''}`.trim(),
+              phone: data.order.address.phone || '',
+              address: data.order.address.address || '',
+              city: data.order.address.city || '',
+              state: data.order.address.state || '',
+              zipCode: data.order.address.zipCode || '',
+              country: data.order.address.country || ''
+            } : {
+              firstName: '',
+              lastName: '',
+              name: '',
+              phone: '',
+              address: '',
+              city: '',
+              state: '',
+              zipCode: '',
+              country: ''
+            },
             paymentMethod: data.order.paymentMethod,
             paymentStatus: data.order.paymentStatus,
             estimatedDelivery: data.order.estimatedDelivery,

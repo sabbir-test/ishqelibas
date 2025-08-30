@@ -123,7 +123,22 @@ export default function OrdersPage() {
         
         // Transform database orders to match our interface
         const transformedOrders: Order[] = data.orders.map((order: any) => {
-          const shippingAddress = JSON.parse(order.shippingAddress || '{}');
+          // Handle address data from the address relationship
+          const shippingAddress = order.address ? {
+            name: `${order.address.firstName || ''} ${order.address.lastName || ''}`.trim(),
+            phone: order.address.phone || '',
+            address: order.address.address || '',
+            city: order.address.city || '',
+            state: order.address.state || '',
+            pincode: order.address.zipCode || ''
+          } : {
+            name: 'Not available',
+            phone: 'Not available', 
+            address: 'Address not available',
+            city: '',
+            state: '',
+            pincode: ''
+          };
           
           return {
             id: order.id,

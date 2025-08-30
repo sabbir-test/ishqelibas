@@ -1,40 +1,63 @@
+#!/usr/bin/env node
+
 const http = require('http')
 
-// Test the orders API for demo user
-const userId = 'cmeohtqkb0000ozaxu2e7eor3' // Demo user ID from previous check
-const apiUrl = `http://localhost:3000/api/orders?userId=${userId}`
+function testOrdersAPI() {
+  console.log('🧪 Testing Orders API Response...\n')
 
-console.log('🔍 Testing orders API...')
-console.log(`URL: ${apiUrl}`)
-
-const req = http.request(apiUrl, {
-  method: 'GET',
-  headers: {
-    'Content-Type': 'application/json',
-    'Authorization': 'Bearer demo-token' // Mock token
-  }
-}, (res) => {
-  let data = ''
-  
-  res.on('data', (chunk) => {
-    data += chunk
-  })
-  
-  res.on('end', () => {
-    try {
-      console.log(`\n📡 Response Status: ${res.statusCode}`)
-      console.log(`\n📋 Response Body:`)
-      console.log(JSON.stringify(JSON.parse(data), null, 2))
-    } catch (error) {
-      console.log(`\n❌ Error parsing response:`, error)
-      console.log(`\n📄 Raw Response:`)
-      console.log(data)
+  const options = {
+    hostname: 'localhost',
+    port: 3000,
+    path: '/api/orders',
+    method: 'GET',
+    headers: {
+      'Cookie': 'auth-token=your-token-here' // This would need actual token
     }
+  }
+
+  const req = http.request(options, (res) => {
+    console.log(`📡 Status: ${res.statusCode}`)
+    console.log(`📋 Headers:`, res.headers)
+    
+    let data = ''
+    res.on('data', (chunk) => {
+      data += chunk
+    })
+
+    res.on('end', () => {
+      try {
+        const response = JSON.parse(data)
+        console.log('\n📊 API Response Structure:')
+        
+        if (response.orders && response.orders.length > 0) {
+          const order = response.orders[0]
+          console.log(`Order ID: ${order.id}`)
+          console.log(`Order Number: ${order.orderNumber}`)
+          console.log(`Address Included: ${!!order.address}`)
+          
+          if (order.address) {
+            console.log('\n✅ Address Data in API Response:')
+            console.log(`   Name: ${order.address.firstName} ${order.address.lastName}`)
+            console.log(`   Address: ${order.address.address}`)
+            console.log(`   City: ${order.address.city}, ${order.address.state}`)
+          } else {
+            console.log('\n❌ No address data in API response')
+          }
+        } else {
+          console.log('No orders in response')
+        }
+      } catch (error) {
+        console.log('Response:', data)
+      }
+    })
   })
-})
 
-req.on('error', (error) => {
-  console.error('❌ Request failed:', error)
-})
+  req.on('error', (e) => {
+    console.error('❌ Request failed:', e.message)
+    console.log('💡 Make sure Next.js server is running and you are authenticated')
+  })
 
-req.end()
+  req.end()
+}
+
+testOrdersAPI()

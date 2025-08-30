@@ -51,6 +51,7 @@ export async function GET(
             }
           }
         },
+        address: true,
         user: {
           select: {
             id: true,
