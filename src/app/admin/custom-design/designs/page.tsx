@@ -83,10 +83,21 @@ export default function AdminDesignsPage() {
   const fetchDesigns = async () => {
     setIsLoading(true)
     try {
-      const response = await fetch("/api/admin/blouse-designs?includeVariants=true&includeCategories=true")
+      const response = await fetch("/api/admin/blouse-designs?includeVariants=true&includeCategories=true", {
+        credentials: 'include'
+      })
       if (response.ok) {
         const data = await response.json()
         setDesigns(data.designs)
+      } else if (response.status === 401) {
+        toast({
+          title: "Unauthorized",
+          description: "Please login again",
+          variant: "destructive"
+        })
+        window.location.href = '/login'
+      } else {
+        throw new Error("Failed to fetch designs")
       }
     } catch (error) {
       console.error("Error fetching designs:", error)
@@ -149,6 +160,7 @@ export default function AdminDesignsPage() {
         headers: {
           "Content-Type": "application/json"
         },
+        credentials: 'include',
         body: JSON.stringify(payload)
       })
 
@@ -159,6 +171,13 @@ export default function AdminDesignsPage() {
         })
         setIsDialogOpen(false)
         fetchDesigns()
+      } else if (response.status === 401) {
+        toast({
+          title: "Unauthorized",
+          description: "Please login again",
+          variant: "destructive"
+        })
+        window.location.href = '/login'
       } else {
         throw new Error("Failed to save design")
       }
@@ -177,7 +196,8 @@ export default function AdminDesignsPage() {
 
     try {
       const response = await fetch(`/api/admin/blouse-designs/${designId}`, {
-        method: "DELETE"
+        method: "DELETE",
+        credentials: 'include'
       })
 
       if (response.ok) {
@@ -186,6 +206,13 @@ export default function AdminDesignsPage() {
           description: "Design deleted successfully"
         })
         fetchDesigns()
+      } else if (response.status === 401) {
+        toast({
+          title: "Unauthorized",
+          description: "Please login again",
+          variant: "destructive"
+        })
+        window.location.href = '/login'
       } else {
         throw new Error("Failed to delete design")
       }
@@ -206,6 +233,7 @@ export default function AdminDesignsPage() {
         headers: {
           "Content-Type": "application/json"
         },
+        credentials: 'include',
         body: JSON.stringify({ isActive })
       })
 
@@ -215,6 +243,13 @@ export default function AdminDesignsPage() {
           description: `Design ${isActive ? "activated" : "deactivated"} successfully`
         })
         fetchDesigns()
+      } else if (response.status === 401) {
+        toast({
+          title: "Unauthorized",
+          description: "Please login again",
+          variant: "destructive"
+        })
+        window.location.href = '/login'
       } else {
         throw new Error("Failed to toggle design status")
       }

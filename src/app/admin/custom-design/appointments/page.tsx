@@ -56,6 +56,36 @@ interface DetailedMeasurement {
   updatedAt: string
 }
 
+interface SalwarMeasurement {
+  id: string
+  customOrderId?: string
+  userId?: string
+  user?: {
+    id: string
+    name: string
+    email: string
+    phone: string
+  }
+  // KAMEEZ (TOP)
+  bust?: number
+  waist?: number
+  hip?: number
+  kameezLength?: number
+  shoulder?: number
+  sleeveLength?: number
+  armholeRound?: number
+  wristRound?: number
+  // SALWAR (BOTTOM)
+  waistTie?: number
+  salwarLength?: number
+  thighRound?: number
+  kneeRound?: number
+  ankleRound?: number
+  notes?: string
+  createdAt: string
+  updatedAt: string
+}
+
 interface User {
   id: string
   name: string
@@ -123,6 +153,27 @@ export default function AdminAppointmentsPage() {
   })
   const [measurementSearchTerm, setMeasurementSearchTerm] = useState('')
   const [allMeasurements, setAllMeasurements] = useState<DetailedMeasurement[]>([])
+  const [allSalwarMeasurements, setAllSalwarMeasurements] = useState<SalwarMeasurement[]>([])
+  const [isAddingSalwarMeasurement, setIsAddingSalwarMeasurement] = useState(false)
+  const [salwarMeasurementForm, setSalwarMeasurementForm] = useState({
+    userId: '',
+    bust: '',
+    waist: '',
+    hip: '',
+    kameezLength: '',
+    shoulder: '',
+    sleeveLength: '',
+    armholeRound: '',
+    wristRound: '',
+    waistTie: '',
+    salwarLength: '',
+    thighRound: '',
+    kneeRound: '',
+    ankleRound: '',
+    notes: ''
+  })
+  const [editingSalwarMeasurement, setEditingSalwarMeasurement] = useState<SalwarMeasurement | null>(null)
+  const [isEditingSalwarMeasurement, setIsEditingSalwarMeasurement] = useState(false)
   const [isEditingTableMeasurement, setIsEditingTableMeasurement] = useState(false)
   const [tableMeasurementForm, setTableMeasurementForm] = useState({
     userId: '',
@@ -147,6 +198,7 @@ export default function AdminAppointmentsPage() {
     fetchAppointments()
     fetchUsers()
     fetchAllMeasurements()
+    fetchAllSalwarMeasurements()
   }, [])
 
   useEffect(() => {
@@ -397,6 +449,18 @@ export default function AdminAppointmentsPage() {
     }
   }
 
+  const fetchAllSalwarMeasurements = async () => {
+    try {
+      const response = await fetch('/api/admin/salwar-measurements')
+      if (response.ok) {
+        const data = await response.json()
+        setAllSalwarMeasurements(data)
+      }
+    } catch (error) {
+      console.error('Error fetching salwar measurements:', error)
+    }
+  }
+
   const startAddingStandaloneMeasurement = () => {
     setStandaloneMeasurementForm({
       userId: '',
@@ -541,6 +605,145 @@ export default function AdminAppointmentsPage() {
     }
   }
 
+  const startAddingSalwarMeasurement = () => {
+    setSalwarMeasurementForm({
+      userId: '',
+      bust: '',
+      waist: '',
+      hip: '',
+      kameezLength: '',
+      shoulder: '',
+      sleeveLength: '',
+      armholeRound: '',
+      wristRound: '',
+      waistTie: '',
+      salwarLength: '',
+      thighRound: '',
+      kneeRound: '',
+      ankleRound: '',
+      notes: ''
+    })
+    setIsAddingSalwarMeasurement(true)
+  }
+
+  const handleSalwarMeasurementChange = (field: string, value: string) => {
+    setSalwarMeasurementForm(prev => ({ ...prev, [field]: value }))
+  }
+
+  const saveSalwarMeasurement = async (addAnother = false) => {
+    if (!salwarMeasurementForm.userId) {
+      alert('Please select a user')
+      return
+    }
+
+    setIsUpdating(true)
+    try {
+      const response = await fetch('/api/admin/salwar-measurements', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(salwarMeasurementForm),
+      })
+
+      if (response.ok) {
+        await fetchAllSalwarMeasurements()
+        
+        if (addAnother) {
+          setSalwarMeasurementForm(prev => ({
+            ...prev,
+            bust: '',
+            waist: '',
+            hip: '',
+            kameezLength: '',
+            shoulder: '',
+            sleeveLength: '',
+            armholeRound: '',
+            wristRound: '',
+            waistTie: '',
+            salwarLength: '',
+            thighRound: '',
+            kneeRound: '',
+            ankleRound: '',
+            notes: ''
+          }))
+        } else {
+          setIsAddingSalwarMeasurement(false)
+        }
+      }
+    } catch (error) {
+      console.error('Error saving salwar measurement:', error)
+    } finally {
+      setIsUpdating(false)
+    }
+  }
+
+  const startEditingSalwarMeasurement = (measurement: SalwarMeasurement) => {
+    setSalwarMeasurementForm({
+      userId: measurement.userId || '',
+      bust: measurement.bust?.toString() || '',
+      waist: measurement.waist?.toString() || '',
+      hip: measurement.hip?.toString() || '',
+      kameezLength: measurement.kameezLength?.toString() || '',
+      shoulder: measurement.shoulder?.toString() || '',
+      sleeveLength: measurement.sleeveLength?.toString() || '',
+      armholeRound: measurement.armholeRound?.toString() || '',
+      wristRound: measurement.wristRound?.toString() || '',
+      waistTie: measurement.waistTie?.toString() || '',
+      salwarLength: measurement.salwarLength?.toString() || '',
+      thighRound: measurement.thighRound?.toString() || '',
+      kneeRound: measurement.kneeRound?.toString() || '',
+      ankleRound: measurement.ankleRound?.toString() || '',
+      notes: measurement.notes || ''
+    })
+    setEditingSalwarMeasurement(measurement)
+    setIsEditingSalwarMeasurement(true)
+  }
+
+  const saveSalwarMeasurementEdit = async () => {
+    if (!editingSalwarMeasurement) return
+
+    setIsUpdating(true)
+    try {
+      const response = await fetch(`/api/admin/salwar-measurements/${editingSalwarMeasurement.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(salwarMeasurementForm),
+      })
+
+      if (response.ok) {
+        await fetchAllSalwarMeasurements()
+        setIsEditingSalwarMeasurement(false)
+        setEditingSalwarMeasurement(null)
+      }
+    } catch (error) {
+      console.error('Error saving salwar measurement:', error)
+    } finally {
+      setIsUpdating(false)
+    }
+  }
+
+  const deleteSalwarMeasurement = async (measurementId: string) => {
+    if (!confirm('Are you sure you want to delete this salwar measurement?')) return
+
+    setIsUpdating(true)
+    try {
+      const response = await fetch(`/api/admin/salwar-measurements/${measurementId}`, {
+        method: 'DELETE',
+      })
+
+      if (response.ok) {
+        await fetchAllSalwarMeasurements()
+      }
+    } catch (error) {
+      console.error('Error deleting salwar measurement:', error)
+    } finally {
+      setIsUpdating(false)
+    }
+  }
+
   const filteredMeasurements = allMeasurements.filter(measurement => {
     if (!measurementSearchTerm) return true
     
@@ -660,19 +863,29 @@ export default function AdminAppointmentsPage() {
             <div>
               <CardTitle className="flex items-center gap-2">
                 <Plus className="h-5 w-5" />
-                Add Measurement
+                Add Measurements
               </CardTitle>
               <CardDescription>
-                Create new measurement records for any user
+                Create new blouse or salwar measurement records for any user
               </CardDescription>
             </div>
-            <Button
-              onClick={startAddingStandaloneMeasurement}
-              disabled={isAddingStandaloneMeasurement}
-            >
-              <Ruler className="h-4 w-4 mr-2" />
-              Add New Measurement
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                onClick={startAddingStandaloneMeasurement}
+                disabled={isAddingStandaloneMeasurement}
+                variant="outline"
+              >
+                <Ruler className="h-4 w-4 mr-2" />
+                Add Blouse Measurement
+              </Button>
+              <Button
+                onClick={startAddingSalwarMeasurement}
+                disabled={isAddingSalwarMeasurement}
+              >
+                <Ruler className="h-4 w-4 mr-2" />
+                Add Salwar Measurement
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -903,10 +1116,236 @@ export default function AdminAppointmentsPage() {
               </div>
             </div>
           )}
+          
+          {/* Salwar Measurement Form */}
+          {isAddingSalwarMeasurement && (
+            <div className="border rounded-lg p-4 bg-purple-50 mt-4">
+              <div className="flex items-center gap-2 mb-4">
+                <Ruler className="h-4 w-4" />
+                <span className="font-medium">Add New Salwar Measurement</span>
+              </div>
+              
+              {/* User Selection */}
+              <div className="mb-4">
+                <Label htmlFor="salwarUserSelect" className="text-sm font-medium">Select User *</Label>
+                <Select
+                  value={salwarMeasurementForm.userId}
+                  onValueChange={(value) => handleSalwarMeasurementChange('userId', value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choose a user..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {users.map((user) => (
+                      <SelectItem key={user.id} value={user.id}>
+                        {user.name} ({user.email})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              {/* KAMEEZ Section */}
+              <div className="mb-4">
+                <h4 className="font-medium text-purple-800 mb-3">KAMEEZ (TOP)</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                  <div>
+                    <Label className="text-xs">Bust (inches)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      placeholder="36"
+                      value={salwarMeasurementForm.bust}
+                      onChange={(e) => handleSalwarMeasurementChange('bust', e.target.value)}
+                      className="h-8"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Waist (inches)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      placeholder="30"
+                      value={salwarMeasurementForm.waist}
+                      onChange={(e) => handleSalwarMeasurementChange('waist', e.target.value)}
+                      className="h-8"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Hip (inches)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      placeholder="38"
+                      value={salwarMeasurementForm.hip}
+                      onChange={(e) => handleSalwarMeasurementChange('hip', e.target.value)}
+                      className="h-8"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Kameez Length (inches)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      placeholder="42"
+                      value={salwarMeasurementForm.kameezLength}
+                      onChange={(e) => handleSalwarMeasurementChange('kameezLength', e.target.value)}
+                      className="h-8"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Shoulder (inches)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      placeholder="15"
+                      value={salwarMeasurementForm.shoulder}
+                      onChange={(e) => handleSalwarMeasurementChange('shoulder', e.target.value)}
+                      className="h-8"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Sleeve Length (inches)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      placeholder="22"
+                      value={salwarMeasurementForm.sleeveLength}
+                      onChange={(e) => handleSalwarMeasurementChange('sleeveLength', e.target.value)}
+                      className="h-8"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Armhole Round (inches)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      placeholder="16"
+                      value={salwarMeasurementForm.armholeRound}
+                      onChange={(e) => handleSalwarMeasurementChange('armholeRound', e.target.value)}
+                      className="h-8"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Wrist Round (inches)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      placeholder="6"
+                      value={salwarMeasurementForm.wristRound}
+                      onChange={(e) => handleSalwarMeasurementChange('wristRound', e.target.value)}
+                      className="h-8"
+                    />
+                  </div>
+                </div>
+              </div>
+              
+              {/* SALWAR Section */}
+              <div className="mb-4">
+                <h4 className="font-medium text-purple-800 mb-3">SALWAR (BOTTOM)</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
+                  <div>
+                    <Label className="text-xs">Waist Tie (inches)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      placeholder="32"
+                      value={salwarMeasurementForm.waistTie}
+                      onChange={(e) => handleSalwarMeasurementChange('waistTie', e.target.value)}
+                      className="h-8"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Salwar Length (inches)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      placeholder="38"
+                      value={salwarMeasurementForm.salwarLength}
+                      onChange={(e) => handleSalwarMeasurementChange('salwarLength', e.target.value)}
+                      className="h-8"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Thigh Round (inches)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      placeholder="22"
+                      value={salwarMeasurementForm.thighRound}
+                      onChange={(e) => handleSalwarMeasurementChange('thighRound', e.target.value)}
+                      className="h-8"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Knee Round (inches)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      placeholder="16"
+                      value={salwarMeasurementForm.kneeRound}
+                      onChange={(e) => handleSalwarMeasurementChange('kneeRound', e.target.value)}
+                      className="h-8"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Ankle Round (inches)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      placeholder="10"
+                      value={salwarMeasurementForm.ankleRound}
+                      onChange={(e) => handleSalwarMeasurementChange('ankleRound', e.target.value)}
+                      className="h-8"
+                    />
+                  </div>
+                </div>
+              </div>
+              
+              <div className="mt-3">
+                <Label className="text-xs">Additional Notes</Label>
+                <Textarea
+                  placeholder="Any specific requirements or preferences..."
+                  value={salwarMeasurementForm.notes}
+                  onChange={(e) => handleSalwarMeasurementChange('notes', e.target.value)}
+                  rows={2}
+                  className="text-sm"
+                />
+              </div>
+              
+              <div className="flex gap-2 mt-4">
+                <Button
+                  onClick={() => saveSalwarMeasurement(false)}
+                  disabled={isUpdating || !salwarMeasurementForm.userId}
+                  size="sm"
+                  className="flex-1"
+                >
+                  <Save className="h-3 w-3 mr-1" />
+                  {isUpdating ? 'Saving...' : 'Save Salwar Measurement'}
+                </Button>
+                <Button
+                  onClick={() => saveSalwarMeasurement(true)}
+                  disabled={isUpdating || !salwarMeasurementForm.userId}
+                  variant="outline"
+                  size="sm"
+                >
+                  <Save className="h-3 w-3 mr-1" />
+                  Save & Add Another
+                </Button>
+                <Button
+                  onClick={() => setIsAddingSalwarMeasurement(false)}
+                  variant="outline"
+                  size="sm"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      {/* Edit Measurement Modal */}
+      {/* Edit Blouse Measurement Modal */}
       {isEditingTableMeasurement && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
@@ -914,7 +1353,7 @@ export default function AdminAppointmentsPage() {
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-2">
                   <Ruler className="h-5 w-5" />
-                  <h3 className="text-lg font-semibold">Edit Measurement</h3>
+                  <h3 className="text-lg font-semibold">Edit Blouse Measurement</h3>
                   <span className="text-sm text-gray-500">
                     for {editingTableMeasurement?.user?.name || 'Unknown User'}
                   </span>
@@ -1137,6 +1576,244 @@ export default function AdminAppointmentsPage() {
                   onClick={() => {
                     setIsEditingTableMeasurement(false)
                     setEditingTableMeasurement(null)
+                  }}
+                  variant="outline"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Salwar Measurement Modal */}
+      {isEditingSalwarMeasurement && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-2">
+                  <Ruler className="h-5 w-5" />
+                  <h3 className="text-lg font-semibold">Edit Salwar Measurement</h3>
+                  <span className="text-sm text-gray-500">
+                    for {editingSalwarMeasurement?.user?.name || 'Unknown User'}
+                  </span>
+                </div>
+                <Button
+                  onClick={() => {
+                    setIsEditingSalwarMeasurement(false)
+                    setEditingSalwarMeasurement(null)
+                  }}
+                  variant="outline"
+                  size="sm"
+                >
+                  ×
+                </Button>
+              </div>
+
+              {/* User Selection */}
+              <div className="mb-6">
+                <Label className="text-sm font-medium">User *</Label>
+                <Select
+                  value={salwarMeasurementForm.userId}
+                  onValueChange={(value) => handleSalwarMeasurementChange('userId', value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a user" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {users.map((user) => (
+                      <SelectItem key={user.id} value={user.id}>
+                        {user.name} ({user.email})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* KAMEEZ Section */}
+              <div className="mb-6">
+                <h4 className="font-medium text-purple-800 mb-3">KAMEEZ (TOP)</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div>
+                    <Label className="text-xs">Bust (inches)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      placeholder="36"
+                      value={salwarMeasurementForm.bust}
+                      onChange={(e) => handleSalwarMeasurementChange('bust', e.target.value)}
+                      className="h-9"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Waist (inches)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      placeholder="30"
+                      value={salwarMeasurementForm.waist}
+                      onChange={(e) => handleSalwarMeasurementChange('waist', e.target.value)}
+                      className="h-9"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Hip (inches)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      placeholder="38"
+                      value={salwarMeasurementForm.hip}
+                      onChange={(e) => handleSalwarMeasurementChange('hip', e.target.value)}
+                      className="h-9"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Kameez Length (inches)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      placeholder="42"
+                      value={salwarMeasurementForm.kameezLength}
+                      onChange={(e) => handleSalwarMeasurementChange('kameezLength', e.target.value)}
+                      className="h-9"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Shoulder (inches)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      placeholder="15"
+                      value={salwarMeasurementForm.shoulder}
+                      onChange={(e) => handleSalwarMeasurementChange('shoulder', e.target.value)}
+                      className="h-9"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Sleeve Length (inches)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      placeholder="22"
+                      value={salwarMeasurementForm.sleeveLength}
+                      onChange={(e) => handleSalwarMeasurementChange('sleeveLength', e.target.value)}
+                      className="h-9"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Armhole Round (inches)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      placeholder="16"
+                      value={salwarMeasurementForm.armholeRound}
+                      onChange={(e) => handleSalwarMeasurementChange('armholeRound', e.target.value)}
+                      className="h-9"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Wrist Round (inches)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      placeholder="6"
+                      value={salwarMeasurementForm.wristRound}
+                      onChange={(e) => handleSalwarMeasurementChange('wristRound', e.target.value)}
+                      className="h-9"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* SALWAR Section */}
+              <div className="mb-6">
+                <h4 className="font-medium text-purple-800 mb-3">SALWAR (BOTTOM)</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                  <div>
+                    <Label className="text-xs">Waist Tie (inches)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      placeholder="32"
+                      value={salwarMeasurementForm.waistTie}
+                      onChange={(e) => handleSalwarMeasurementChange('waistTie', e.target.value)}
+                      className="h-9"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Salwar Length (inches)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      placeholder="38"
+                      value={salwarMeasurementForm.salwarLength}
+                      onChange={(e) => handleSalwarMeasurementChange('salwarLength', e.target.value)}
+                      className="h-9"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Thigh Round (inches)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      placeholder="22"
+                      value={salwarMeasurementForm.thighRound}
+                      onChange={(e) => handleSalwarMeasurementChange('thighRound', e.target.value)}
+                      className="h-9"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Knee Round (inches)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      placeholder="16"
+                      value={salwarMeasurementForm.kneeRound}
+                      onChange={(e) => handleSalwarMeasurementChange('kneeRound', e.target.value)}
+                      className="h-9"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Ankle Round (inches)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      placeholder="10"
+                      value={salwarMeasurementForm.ankleRound}
+                      onChange={(e) => handleSalwarMeasurementChange('ankleRound', e.target.value)}
+                      className="h-9"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Notes */}
+              <div className="mb-6">
+                <Label className="text-sm font-medium">Notes</Label>
+                <Textarea
+                  placeholder="Additional notes about this salwar measurement..."
+                  value={salwarMeasurementForm.notes}
+                  onChange={(e) => handleSalwarMeasurementChange('notes', e.target.value)}
+                  rows={3}
+                />
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3">
+                <Button
+                  onClick={saveSalwarMeasurementEdit}
+                  disabled={isUpdating || !salwarMeasurementForm.userId}
+                  className="flex-1"
+                >
+                  <Save className="h-4 w-4 mr-2" />
+                  {isUpdating ? 'Saving...' : 'Save Changes'}
+                </Button>
+                <Button
+                  onClick={() => {
+                    setIsEditingSalwarMeasurement(false)
+                    setEditingSalwarMeasurement(null)
                   }}
                   variant="outline"
                 >
@@ -1390,16 +2067,53 @@ export default function AdminAppointmentsPage() {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => startEditingMeasurements(selectedAppointment)}
-                          disabled={isEditingMeasurements}
+                          onClick={() => startAddingDetailedMeasurements()}
+                          disabled={isAddingDetailedMeasurements}
                         >
                           <Ruler className="h-3 w-3 mr-1" />
-                          {selectedAppointment.measurementDetails ? 'Edit' : 'Add'} Measurements
+                          Add DB Measurement
                         </Button>
                       </div>
                       
-                      {selectedAppointment.measurementDetails && !isEditingMeasurements && (
-                        <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded">
+                      {detailedMeasurements.length > 0 && (
+                        <div className="space-y-2">
+                          <div className="text-xs font-medium text-green-700">Database Measurements:</div>
+                          {detailedMeasurements.map((measurement, index) => (
+                            <div key={measurement.id} className="text-sm bg-green-50 p-3 rounded border border-green-200">
+                              <div className="flex justify-between items-start mb-2">
+                                <span className="text-xs font-medium text-green-800">
+                                  #{index + 1} - {format(new Date(measurement.createdAt), 'MMM dd')}
+                                </span>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => startEditingDetailedMeasurement(measurement)}
+                                  className="h-6 px-2 text-xs"
+                                >
+                                  Edit
+                                </Button>
+                              </div>
+                              <div className="grid grid-cols-2 gap-2 text-xs">
+                                {measurement.chest && <div>Chest: <span className="font-medium">{measurement.chest}"</span></div>}
+                                {measurement.waist && <div>Waist: <span className="font-medium">{measurement.waist}"</span></div>}
+                                {measurement.fullShoulder && <div>Shoulder: <span className="font-medium">{measurement.fullShoulder}"</span></div>}
+                                {measurement.sleeveLength && <div>Sleeve: <span className="font-medium">{measurement.sleeveLength}"</span></div>}
+                                {measurement.blouseBackLength && <div>Length: <span className="font-medium">{measurement.blouseBackLength}"</span></div>}
+                                {measurement.armRound && <div>Arm: <span className="font-medium">{measurement.armRound}"</span></div>}
+                              </div>
+                              {measurement.notes && (
+                                <div className="mt-2 text-xs">
+                                  <span className="font-medium">Notes:</span> {measurement.notes}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      
+                      {detailedMeasurements.length === 0 && selectedAppointment.measurementDetails && !isEditingMeasurements && (
+                        <div className="text-sm text-gray-600 bg-yellow-50 p-3 rounded border border-yellow-200">
+                          <div className="text-xs font-medium text-yellow-700 mb-2">Legacy Measurements:</div>
                           {(() => {
                             try {
                               const measurements = JSON.parse(selectedAppointment.measurementDetails)
@@ -1422,6 +2136,12 @@ export default function AdminAppointmentsPage() {
                               return <span className="text-red-500">Invalid measurement data</span>
                             }
                           })()}
+                        </div>
+                      )}
+                      
+                      {detailedMeasurements.length === 0 && !selectedAppointment.measurementDetails && (
+                        <div className="text-sm text-gray-500 bg-gray-50 p-3 rounded text-center">
+                          No measurements recorded. Click "Add DB Measurement" above.
                         </div>
                       )}
                     </div>
@@ -1551,9 +2271,9 @@ export default function AdminAppointmentsPage() {
             <CardHeader>
               <div className="flex justify-between items-center">
                 <div>
-                  <CardTitle>Measurement Table</CardTitle>
+                  <CardTitle>Blouse Measurement Table</CardTitle>
                   <CardDescription>
-                    Manage detailed customer measurements for appointments and standalone records
+                    Manage detailed blouse measurements for appointments and standalone records
                   </CardDescription>
                 </div>
                 <div className="flex gap-2">
@@ -1882,6 +2602,140 @@ export default function AdminAppointmentsPage() {
                       {filteredMeasurements.filter(m => m.customOrderId).length} appointment-linked, 
                       {filteredMeasurements.filter(m => !m.customOrderId).length} standalone
                     </p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Salwar Measurement Table Section */}
+        <div className="lg:col-span-3 mt-6">
+          <Card>
+            <CardHeader>
+              <div className="flex justify-between items-center">
+                <div>
+                  <CardTitle>Salwar Measurement Table</CardTitle>
+                  <CardDescription>
+                    Manage detailed salwar kameez measurements for customers
+                  </CardDescription>
+                </div>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    placeholder="Search salwar measurements..."
+                    value={measurementSearchTerm}
+                    onChange={(e) => setMeasurementSearchTerm(e.target.value)}
+                    className="pl-10 w-64"
+                  />
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="border rounded-lg overflow-hidden">
+                  <div className="max-h-96 overflow-y-auto">
+                    <table className="w-full">
+                      <thead className="bg-purple-50 sticky top-0">
+                        <tr>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-purple-700 uppercase">Date</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-purple-700 uppercase">User</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-purple-700 uppercase">Type</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-purple-700 uppercase">Bust</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-purple-700 uppercase">Waist</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-purple-700 uppercase">Kameez Length</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-purple-700 uppercase">Salwar Length</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-purple-700 uppercase">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {allSalwarMeasurements.filter(measurement => {
+                          if (!measurementSearchTerm) return true
+                          const searchLower = measurementSearchTerm.toLowerCase()
+                          return (
+                            measurement.user?.name?.toLowerCase().includes(searchLower) ||
+                            measurement.user?.email?.toLowerCase().includes(searchLower)
+                          )
+                        }).length === 0 ? (
+                          <tr>
+                            <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
+                              {measurementSearchTerm ? 'No salwar measurements found matching your search.' : 'No salwar measurements found. Use the "Add Salwar Measurement" button above to create one.'}
+                            </td>
+                          </tr>
+                        ) : (
+                          allSalwarMeasurements.filter(measurement => {
+                            if (!measurementSearchTerm) return true
+                            const searchLower = measurementSearchTerm.toLowerCase()
+                            return (
+                              measurement.user?.name?.toLowerCase().includes(searchLower) ||
+                              measurement.user?.email?.toLowerCase().includes(searchLower)
+                            )
+                          }).map((measurement) => (
+                            <tr key={measurement.id} className="hover:bg-purple-50">
+                              <td className="px-4 py-2 text-sm">
+                                {format(new Date(measurement.createdAt), 'MMM dd, yyyy')}
+                              </td>
+                              <td className="px-4 py-2 text-sm">
+                                <div>
+                                  <div className="font-medium">{measurement.user?.name || 'Unknown'}</div>
+                                  <div className="text-xs text-gray-500">{measurement.user?.email}</div>
+                                </div>
+                              </td>
+                              <td className="px-4 py-2 text-sm">
+                                <Badge variant={measurement.customOrderId ? "default" : "secondary"} className="bg-purple-100 text-purple-800">
+                                  {measurement.customOrderId ? 'Appointment' : 'Standalone'}
+                                </Badge>
+                              </td>
+                              <td className="px-4 py-2 text-sm">
+                                {measurement.bust ? `${measurement.bust}"` : '-'}
+                              </td>
+                              <td className="px-4 py-2 text-sm">
+                                {measurement.waist ? `${measurement.waist}"` : '-'}
+                              </td>
+                              <td className="px-4 py-2 text-sm">
+                                {measurement.kameezLength ? `${measurement.kameezLength}"` : '-'}
+                              </td>
+                              <td className="px-4 py-2 text-sm">
+                                {measurement.salwarLength ? `${measurement.salwarLength}"` : '-'}
+                              </td>
+                              <td className="px-4 py-2 text-sm">
+                                <div className="flex gap-1">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => startEditingSalwarMeasurement(measurement)}
+                                    className="h-7 px-2 text-xs"
+                                  >
+                                    Edit
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => deleteSalwarMeasurement(measurement.id)}
+                                    className="h-7 px-2 text-xs text-red-600 hover:text-red-700"
+                                  >
+                                    Delete
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {allSalwarMeasurements.length > 0 && (
+                  <div className="text-sm text-gray-600">
+                    <p>Showing {allSalwarMeasurements.filter(measurement => {
+                      if (!measurementSearchTerm) return true
+                      const searchLower = measurementSearchTerm.toLowerCase()
+                      return (
+                        measurement.user?.name?.toLowerCase().includes(searchLower) ||
+                        measurement.user?.email?.toLowerCase().includes(searchLower)
+                      )
+                    }).length} of {allSalwarMeasurements.length} total salwar measurement records</p>
                   </div>
                 )}
               </div>

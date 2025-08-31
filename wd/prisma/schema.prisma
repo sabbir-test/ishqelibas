@@ -1,0 +1,451 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  name          String?
+  password      String
+  phone         String?
+  address       String?
+  city          String?
+  state         String?
+  country       String?
+  zipCode       String?
+  role          Role     @default(USER)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // Relations
+  orders        Order[]
+  cartItems     CartItem[]
+  reviews       Review[]
+  wishlistItems WishlistItem[]
+  customOrders  CustomOrder[]
+  measurements  Measurement[]
+  addresses     Address[]
+  configChangeLogs ConfigChangeLog[]
+  
+  @@map("users")
+}
+
+model Address {
+  id          String   @id @default(cuid())
+  userId      String
+  type        String   // 'Home', 'Work', 'Other'
+  firstName   String
+  lastName    String
+  email       String
+  phone       String
+  address     String
+  city        String
+  state       String
+  zipCode     String
+  country     String   @default("India")
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders      Order[]
+  
+  @@map("addresses")
+}
+
+model Configuration {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@map("configurations")
+}
+
+model ConfigurationLog {
+  id          String   @id @default(cuid())
+  configKey   String
+  oldValue    String?
+  newValue    String
+  action      String   // 'CREATE', 'UPDATE', 'DELETE'
+  adminId     String
+  adminName   String
+  createdAt   DateTime @default(now())
+  
+  @@map("configuration_logs")
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  price       Float
+  discount    Float?
+  finalPrice  Float
+  stock       Int      @default(0)
+  sku         String   @unique
+  images      String?
+  sizes       String?  // JSON array of available sizes
+  colors      String?  // JSON array of available colors
+  isActive    Boolean  @default(true)
+  isFeatured  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  categoryId  String
+  category    Category @relation(fields: [categoryId], references: [id])
+  orderItems  OrderItem[]
+  cartItems   CartItem[]
+  reviews     Review[]
+  wishlistItems WishlistItem[]
+  
+  @@map("products")
+}
+
+model Category {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  image       String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  products Product[]
+  
+  @@map("categories")
+}
+
+model Order {
+  id            String      @id @default(cuid())
+  orderNumber   String      @unique
+  userId        String
+  status        OrderStatus @default(PENDING)
+  subtotal      Float
+  discount      Float       @default(0)
+  tax           Float       @default(0)
+  shipping      Float       @default(0)
+  total         Float
+  paymentMethod PaymentMethod
+  paymentStatus PaymentStatus @default(PENDING)
+  addressId     String?
+  notes         String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  // Relations
+  user        User        @relation(fields: [userId], references: [id])
+  address     Address?    @relation(fields: [addressId], references: [id])
+  orderItems  OrderItem[]
+  
+  @@map("orders")
+}
+
+model OrderItem {
+  id        String @id @default(cuid())
+  orderId   String
+  productId String
+  quantity  Int
+  price     Float
+  size      String? // Selected size
+  color     String? // Selected color
+  createdAt DateTime @default(now())
+  
+  // Relations
+  order   Order   @relation(fields: [orderId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+  
+  @@map("order_items")
+}
+
+model CartItem {
+  id        String @id @default(cuid())
+  userId    String
+  productId String
+  quantity  Int
+  size      String? // Selected size
+  color     String? // Selected color
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  user    User    @relation(fields: [userId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+  
+  @@unique([userId, productId, size, color])
+  @@map("cart_items")
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  userId    String
+  productId String
+  rating    Int
+  comment   String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  user    User    @relation(fields: [userId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+  
+  @@unique([userId, productId])
+  @@map("reviews")
+}
+
+model WishlistItem {
+  id        String   @id @default(cuid())
+  userId    String
+  productId String
+  createdAt DateTime @default(now())
+  
+  // Relations
+  user    User    @relation(fields: [userId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+  
+  @@unique([userId, productId])
+  @@map("wishlist_items")
+}
+
+// Custom Blouse Design Models
+model CustomOrder {
+  id            String           @id @default(cuid())
+  userId        String
+  status        CustomOrderStatus @default(PENDING)
+  fabric        String
+  fabricColor   String
+  frontDesign   String
+  backDesign    String
+  oldMeasurements  String
+  price         Float
+  notes         String?
+  appointmentDate DateTime?
+  appointmentType String? // 'VIRTUAL' or 'IN_PERSON'
+  measurementDetails String? // JSON string for detailed measurements
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  
+  // Relations
+  user User @relation(fields: [userId], references: [id])
+  detailedMeasurements Measurement[]
+  
+  @@map("custom_orders")
+}
+
+model Measurement {
+  id                 String   @id @default(cuid())
+  customOrderId      String?
+  userId             String?
+  blouseBackLength   Float?
+  fullShoulder       Float?
+  shoulderStrap      Float?
+  backNeckDepth      Float?
+  frontNeckDepth     Float?
+  shoulderToApex     Float?
+  frontLength        Float?
+  chest              Float?
+  waist              Float?
+  sleeveLength       Float?
+  armRound           Float?
+  sleeveRound        Float?
+  armHole            Float?
+  notes              String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  
+  // Relations
+  customOrder CustomOrder? @relation(fields: [customOrderId], references: [id], onDelete: Cascade)
+  user        User?        @relation(fields: [userId], references: [id])
+  
+  @@map("measurements")
+}
+
+model Fabric {
+  id          String   @id @default(cuid())
+  name        String
+  type        String
+  color       String
+  image       String?
+  pricePerMeter Float
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@map("fabrics")
+}
+
+model BlouseDesign {
+  id          String         @id @default(cuid())
+  name        String
+  type        DesignType
+  image       String?
+  description String?
+  stitchCost  Float          @default(0)
+  isActive    Boolean        @default(true)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  
+  // Relations
+  categoryId  String?
+  category    BlouseDesignCategory? @relation(fields: [categoryId], references: [id])
+  variants    BlouseDesignVariant[]
+  frontModels BlouseModel[] @relation("FrontModelDesign")
+  backModels  BlouseModel[] @relation("BackModelDesign")
+  
+  @@map("blouse_designs")
+}
+
+model BlouseDesignCategory {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  image       String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  designs     BlouseDesign[]
+  
+  @@map("blouse_design_categories")
+}
+
+model BlouseDesignVariant {
+  id          String   @id @default(cuid())
+  name        String
+  image       String?
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  designId    String
+  design      BlouseDesign @relation(fields: [designId], references: [id])
+  
+  @@map("blouse_design_variants")
+}
+
+model BlouseModel {
+  id          String   @id @default(cuid())
+  name        String
+  image       String?
+  description String?
+  price       Float
+  discount    Float?
+  finalPrice  Float
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  frontDesignId String?
+  frontDesign  BlouseDesign? @relation("FrontModelDesign", fields: [frontDesignId], references: [id])
+  backDesignId  String?
+  backDesign   BlouseDesign? @relation("BackModelDesign", fields: [backDesignId], references: [id])
+  
+  @@map("blouse_models")
+}
+
+model SalwarKameezModel {
+  id          String   @id @default(cuid())
+  name        String
+  designName  String
+  image       String?
+  description String?
+  price       Float
+  discount    Float?
+  finalPrice  Float
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@map("salwar_kameez_models")
+}
+
+// Enums
+enum Role {
+  USER
+  ADMIN
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  RAZORPAY
+  COD
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum CustomOrderStatus {
+  PENDING
+  CONFIRMED
+  IN_PRODUCTION
+  READY
+  DELIVERED
+  CANCELLED
+}
+
+enum DesignType {
+  FRONT
+  BACK
+}
+
+// Configuration model for admin settings
+model Config {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String
+  description String?
+  updatedAt   DateTime @updatedAt
+  updatedBy   String?
+  
+  @@map("configs")
+}
+
+// Configuration change log for auditing
+model ConfigChangeLog {
+  id          String   @id @default(cuid())
+  configKey   String
+  oldValue    String?
+  newValue    String
+  changedBy   String
+  changeType  String   // 'CREATE', 'UPDATE', 'DELETE'
+  createdAt   DateTime @default(now())
+  
+  user        User      @relation(fields: [changedBy], references: [id])
+  
+  @@map("config_change_logs")
+}

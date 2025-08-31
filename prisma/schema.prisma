@@ -36,6 +36,7 @@ model User {
   wishlistItems WishlistItem[]
   customOrders  CustomOrder[]
   measurements  Measurement[]
+  salwarMeasurements SalwarMeasurement[]
   addresses     Address[]
   configChangeLogs ConfigChangeLog[]
   
@@ -247,6 +248,7 @@ model CustomOrder {
   // Relations
   user User @relation(fields: [userId], references: [id])
   detailedMeasurements Measurement[]
+  salwarMeasurements SalwarMeasurement[]
   
   @@map("custom_orders")
 }
@@ -364,6 +366,52 @@ model BlouseModel {
   backDesign   BlouseDesign? @relation("BackModelDesign", fields: [backDesignId], references: [id])
   
   @@map("blouse_models")
+}
+
+model SalwarKameezModel {
+  id          String   @id @default(cuid())
+  name        String
+  designName  String
+  image       String?
+  description String?
+  price       Float
+  discount    Float?
+  finalPrice  Float
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@map("salwar_kameez_models")
+}
+
+model SalwarMeasurement {
+  id                 String   @id @default(cuid())
+  customOrderId      String?
+  userId             String?
+  // KAMEEZ (TOP)
+  bust               Float?
+  waist              Float?
+  hip                Float?
+  kameezLength       Float?
+  shoulder           Float?
+  sleeveLength       Float?
+  armholeRound       Float?
+  wristRound         Float?
+  // SALWAR (BOTTOM)
+  waistTie           Float?
+  salwarLength       Float?
+  thighRound         Float?
+  kneeRound          Float?
+  ankleRound         Float?
+  notes              String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  
+  // Relations
+  customOrder CustomOrder? @relation(fields: [customOrderId], references: [id], onDelete: Cascade)
+  user        User?        @relation(fields: [userId], references: [id])
+  
+  @@map("salwar_measurements")
 }
 
 // Enums
