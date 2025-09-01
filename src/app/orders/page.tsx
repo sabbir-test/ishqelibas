@@ -101,11 +101,12 @@ export default function OrdersPage() {
     if (authState.user) {
       console.log('👤 User authenticated, loading orders for:', authState.user.email)
       loadOrders()
-    } else {
+    } else if (!authState.isLoading) {
       console.log('🚫 No authenticated user, clearing orders')
       setOrders([])
+      setIsLoading(false)
     }
-  }, [authState.user])
+  }, [authState.user, authState.isLoading])
 
   useEffect(() => {
     filterOrders()
@@ -208,9 +209,18 @@ export default function OrdersPage() {
         
         // Handle specific error cases
         if (response.status === 401) {
-          console.log('🔐 Authentication required, redirecting to login')
+          console.log('🔐 Authentication required, refreshing user session')
           // Force re-authentication
-          await authState.refreshUser?.()
+          if (authState.refreshUser) {
+            await authState.refreshUser()
+            // Retry loading orders after refresh
+            setTimeout(() => {
+              if (authState.user) {
+                console.log('🔄 Retrying order load after auth refresh')
+                loadOrders()
+              }
+            }, 1000)
+          }
         }
         
         setOrders([])

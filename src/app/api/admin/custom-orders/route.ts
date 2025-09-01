@@ -26,7 +26,26 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Admin access required" }, { status: 403 })
     }
 
+    // Fetch custom orders with filtering for legitimate users
     const orders = await db.customOrder.findMany({
+      where: {
+        user: {
+          isActive: true,
+          // Exclude specific test/placeholder email patterns but allow demo@example.com for testing
+          NOT: [
+            { email: { contains: 'test-dummy@' } },
+            { email: { contains: 'sample@' } },
+            { email: { contains: 'placeholder@' } },
+            { email: { contains: 'fake@' } },
+            { email: { contains: 'dummy@' } },
+            { email: { contains: 'noreply@' } },
+            { email: { contains: 'donotreply@' } },
+            // Exclude obvious test patterns but keep demo@example.com
+            { email: 'test@example.com' },
+            { email: 'sample@example.com' }
+          ]
+        }
+      },
       include: {
         user: {
           select: {
@@ -66,7 +85,8 @@ export async function GET(request: NextRequest) {
       withMeasurements: ordersWithMeasurements.filter(o => o.userMeasurements).length,
       pending: ordersWithMeasurements.filter(o => !o.userMeasurements).length
     }
-    console.log(`📊 Measurement Status - Total: ${measurementStats.total}, Available: ${measurementStats.withMeasurements}, Pending: ${measurementStats.pending}`)
+    console.log(`📊 Admin Custom Orders - Total: ${measurementStats.total}, With Measurements: ${measurementStats.withMeasurements}, Pending: ${measurementStats.pending}`)
+    console.log(`🔍 Showing orders from legitimate users (including demo@example.com for testing)`)
 
     // Sanitize data to prevent frontend crashes
     const sanitizedOrders = ordersWithMeasurements.map(order => ({
@@ -82,6 +102,12 @@ export async function GET(request: NextRequest) {
         total: sanitizedOrders.length,
         withMeasurements: sanitizedOrders.filter(o => o.userMeasurements).length,
         pending: sanitizedOrders.filter(o => !o.userMeasurements).length
+      },
+      meta: {
+        filtered: true,
+        excludedPatterns: ['test-dummy@', 'sample@', 'placeholder@', 'fake@', 'dummy@', 'noreply@'],
+        allowedForTesting: ['demo@example.com'],
+        message: 'Showing orders from legitimate users and demo account for testing'
       }
     })
   } catch (error) {

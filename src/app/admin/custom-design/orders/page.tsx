@@ -15,7 +15,8 @@ import {
   User,
   Package,
   TrendingUp,
-  Filter
+  Filter,
+  Clock
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
@@ -71,6 +72,13 @@ export default function AdminCustomOrdersPage() {
 
   useEffect(() => {
     fetchOrders()
+    
+    // Set up auto-refresh every 30 seconds
+    const interval = setInterval(() => {
+      fetchOrders()
+    }, 30000)
+    
+    return () => clearInterval(interval)
   }, [])
 
   const fetchOrders = async () => {
@@ -256,6 +264,15 @@ export default function AdminCustomOrdersPage() {
                   <SelectItem value="CANCELLED">Cancelled</SelectItem>
                 </SelectContent>
               </Select>
+              <Button
+                variant="outline"
+                onClick={fetchOrders}
+                disabled={isLoading}
+                className="flex items-center space-x-2"
+              >
+                <TrendingUp className="h-4 w-4" />
+                <span>Refresh</span>
+              </Button>
             </div>
           </div>
         </div>
@@ -378,77 +395,103 @@ export default function AdminCustomOrdersPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredOrders.map((order) => (
-                  <TableRow key={order.id}>
-                    <TableCell className="font-medium">#{order.id.slice(-6)}</TableCell>
-                    <TableCell>
-                      <div>
-                        <p className="font-medium">{order.user?.name || "Unknown"}</p>
-                        <p className="text-sm text-gray-600">{order.user?.email || ""}</p>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div>
-                        <p className="font-medium">{order.fabric}</p>
-                        <div className="flex items-center space-x-2">
-                          <div 
-                            className="w-4 h-4 rounded border"
-                            style={{ backgroundColor: order.fabricColor.toLowerCase() }}
-                          />
-                          <span className="text-sm text-gray-600">{order.fabricColor}</span>
+                {filteredOrders.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={9} className="text-center py-12">
+                      <div className="flex flex-col items-center space-y-4">
+                        <Package className="h-12 w-12 text-gray-400" />
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                            No Custom Orders Found
+                          </h3>
+                          <p className="text-gray-600 mb-4">
+                            No legitimate custom orders are currently available.
+                          </p>
+                          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 max-w-md">
+                            <h4 className="font-semibold text-blue-900 mb-2">Why might this happen?</h4>
+                            <ul className="text-sm text-blue-700 text-left space-y-1">
+                              <li>• All orders are from demo/test accounts (filtered out)</li>
+                              <li>• No customers have placed custom orders yet</li>
+                              <li>• Orders are still being processed in the system</li>
+                            </ul>
+                          </div>
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell>
-                      <div>
-                        <p className="text-sm">Front: {order.frontDesign}</p>
-                        <p className="text-sm">Back: {order.backDesign}</p>
-                      </div>
-                    </TableCell>
-                    <TableCell>{formatPrice(order.price)}</TableCell>
-                    <TableCell>
-                      <Select 
-                        value={order.status} 
-                        onValueChange={(value) => handleStatusChange(order.id, value)}
-                      >
-                        <SelectTrigger className="w-32">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="PENDING">Pending</SelectItem>
-                          <SelectItem value="CONFIRMED">Confirmed</SelectItem>
-                          <SelectItem value="IN_PRODUCTION">In Production</SelectItem>
-                          <SelectItem value="READY">Ready</SelectItem>
-                          <SelectItem value="DELIVERED">Delivered</SelectItem>
-                          <SelectItem value="CANCELLED">Cancelled</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-                    <TableCell>
-                      {order.userMeasurements ? (
-                        <Badge className="bg-green-100 text-green-800">
-                          ✓ Available
-                        </Badge>
-                      ) : (
-                        <Badge className="bg-yellow-100 text-yellow-800">
-                          ⏳ Pending
-                        </Badge>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {new Date(order.createdAt).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleViewDetails(order)}
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
                   </TableRow>
-                ))}
+                ) : (
+                  filteredOrders.map((order) => (
+                    <TableRow key={order.id}>
+                      <TableCell className="font-medium">#{order.id.slice(-6)}</TableCell>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium">{order.user?.name || "Unknown"}</p>
+                          <p className="text-sm text-gray-600">{order.user?.email || ""}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium">{order.fabric}</p>
+                          <div className="flex items-center space-x-2">
+                            <div 
+                              className="w-4 h-4 rounded border"
+                              style={{ backgroundColor: order.fabricColor.toLowerCase() }}
+                            />
+                            <span className="text-sm text-gray-600">{order.fabricColor}</span>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div>
+                          <p className="text-sm">Front: {order.frontDesign}</p>
+                          <p className="text-sm">Back: {order.backDesign}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell>{formatPrice(order.price)}</TableCell>
+                      <TableCell>
+                        <Select 
+                          value={order.status} 
+                          onValueChange={(value) => handleStatusChange(order.id, value)}
+                        >
+                          <SelectTrigger className="w-32">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="PENDING">Pending</SelectItem>
+                            <SelectItem value="CONFIRMED">Confirmed</SelectItem>
+                            <SelectItem value="IN_PRODUCTION">In Production</SelectItem>
+                            <SelectItem value="READY">Ready</SelectItem>
+                            <SelectItem value="DELIVERED">Delivered</SelectItem>
+                            <SelectItem value="CANCELLED">Cancelled</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell>
+                        {order.userMeasurements ? (
+                          <Badge className="bg-green-100 text-green-800">
+                            ✓ Available
+                          </Badge>
+                        ) : (
+                          <Badge className="bg-yellow-100 text-yellow-800">
+                            ⏳ Pending
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {new Date(order.createdAt).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleViewDetails(order)}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
           </CardContent>

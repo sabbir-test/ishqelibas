@@ -25,7 +25,7 @@ import {
   ShoppingCart
 } from "lucide-react"
 import Link from "next/link"
-import { useSearchParams } from "next/navigation"
+import { useSearchParams, useRouter } from "next/navigation"
 
 type CheckoutStep = "shipping" | "payment" | "confirmation"
 
@@ -53,6 +53,7 @@ export default function CheckoutPage() {
   const { state, clearCart } = useCart()
   const { state: authState } = useAuth()
   const searchParams = useSearchParams()
+  const router = useRouter()
   const itemId = searchParams.get('itemId')
   
   // Filter items for single item checkout
@@ -112,13 +113,23 @@ export default function CheckoutPage() {
 
   const handlePaymentSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setIsProcessing(true)
     
-    // Simulate payment processing
-    setTimeout(() => {
-      setIsProcessing(false)
+    // Validate shipping info before proceeding
+    if (!shippingInfo.firstName || !shippingInfo.lastName || !shippingInfo.email || 
+        !shippingInfo.phone || !shippingInfo.address || !shippingInfo.city || 
+        !shippingInfo.state || !shippingInfo.zipCode) {
+      alert('Please complete all shipping information before proceeding to payment.')
+      setCurrentStep('shipping')
+      return
+    }
+    
+    // For COD, place order immediately
+    if (paymentInfo.method === 'cod') {
+      await handlePlaceOrder()
+    } else {
+      // For Razorpay, just proceed to show payment options
       setCurrentStep("confirmation")
-    }, 2000)
+    }
   }
 
   const handlePlaceOrder = async () => {
@@ -179,32 +190,41 @@ export default function CheckoutPage() {
       })
 
       console.log("📡 Order API response status:", response.status)
+      
+      const responseText = await response.text()
+      console.log("📡 Raw response:", responseText)
 
       if (response.ok) {
-        const { order } = await response.json()
-        console.log("✅ Order created successfully:", order)
-        
-        // Clear cart (either specific item or entire cart)
-        if (isSingleItemCheckout && itemId) {
-          // Remove only the specific item - this would need to be implemented in cart context
-          // For now, we'll clear the entire cart
-          clearCart()
-        } else {
-          clearCart()
+        let responseData
+        try {
+          responseData = JSON.parse(responseText)
+        } catch (parseError) {
+          console.error("❌ Failed to parse response:", parseError)
+          throw new Error('Invalid response from server')
         }
         
-        // Redirect to order confirmation page with order ID
-        window.location.href = `/order-confirmation?orderId=${order.id}&orderNumber=${order.orderNumber}`
+        const { order } = responseData
+        console.log("✅ Order created successfully:", order)
+        
+        clearCart()
+        // Use Next.js router for navigation to preserve authentication context
+        router.push(`/order-confirmation?orderId=${order.id}&orderNumber=${order.orderNumber}`)
       } else {
-        const errorData = await response.json()
+        let errorData
+        try {
+          errorData = JSON.parse(responseText)
+        } catch {
+          errorData = { error: responseText || 'Unknown server error' }
+        }
+        
         console.error("❌ Order creation failed:", {
           status: response.status,
           statusText: response.statusText,
-          error: errorData
+          rawResponse: responseText,
+          parsedError: errorData
         })
         
-        // Show specific error message to user
-        const errorMessage = errorData.error || `Failed to create order (${response.status})`
+        const errorMessage = errorData.error || errorData.details || `Server error (${response.status})`
         alert(`Order creation failed: ${errorMessage}`)
         throw new Error(errorMessage)
       }
@@ -299,6 +319,7 @@ export default function CheckoutPage() {
                 onShippingInfoChange={setShippingInfo}
                 onAddressSelect={handleAddressSelect}
                 onContinue={handleContinueToPayment}
+                isAuthenticated={!!authState.user}
               />
             )}
 
@@ -357,8 +378,13 @@ export default function CheckoutPage() {
                           <ArrowLeft className="h-4 w-4 mr-2" />
                           Back
                         </Button>
-                        <Button type="submit">
-                          Continue
+                        <Button 
+                          type="submit"
+                          disabled={isProcessing}
+                        >
+                          {isProcessing ? 'Processing...' : (
+                            paymentInfo.method === 'cod' ? 'Place Order' : 'Continue'
+                          )}
                           <ArrowRight className="h-4 w-4 ml-2" />
                         </Button>
                       </div>
@@ -367,54 +393,41 @@ export default function CheckoutPage() {
                 </Card>
 
                 {/* Razorpay Payment Component */}
-                {paymentInfo.method === "razorpay" && (
-                  <RazorpayPayment
-                    amount={total}
-                    orderId={`order-${Date.now()}`}
-                    onSuccess={async (paymentId) => {
-                      console.log("Payment successful:", paymentId)
-                      await handlePlaceOrder()
-                    }}
-                    onError={(error) => {
-                      console.error("Payment failed:", error)
-                    }}
-                  />
-                )}
-
-                {/* COD Payment Info */}
-                {paymentInfo.method === "cod" && (
+                {paymentInfo.method === "razorpay" && currentStep === "confirmation" && (
                   <Card>
                     <CardContent className="p-6">
                       <div className="text-center space-y-4">
-                        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
-                          <Truck className="h-8 w-8 text-green-600" />
+                        <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto">
+                          <CreditCard className="h-8 w-8 text-blue-600" />
                         </div>
                         <div>
-                          <h3 className="text-xl font-semibold mb-2">Cash on Delivery</h3>
+                          <h3 className="text-xl font-semibold mb-2">Pay with Razorpay</h3>
                           <p className="text-gray-600 mb-4">
-                            Pay when you receive your order. Our delivery partner will collect the payment at the time of delivery.
+                            Secure payment with UPI, Cards, Net Banking, and Wallets.
                           </p>
                         </div>
                         <div className="bg-blue-50 p-4 rounded-lg">
-                          <h4 className="font-medium mb-2">COD Terms & Conditions:</h4>
-                          <ul className="text-sm text-gray-600 space-y-1 text-left">
-                            <li>• Only available for orders below ₹10,000</li>
-                            <li>• Exact change is appreciated</li>
-                            <li>• Please verify the product before paying</li>
-                            <li>• Delivery partner will wait for maximum 5 minutes</li>
-                          </ul>
+                          <p className="text-sm text-gray-600 mb-2">Order Total: ₹{total.toLocaleString()}</p>
+                          <p className="text-xs text-gray-500">You will be redirected to Razorpay for secure payment</p>
                         </div>
-                        <Button 
-                          onClick={handlePlaceOrder}
-                          disabled={isProcessing}
-                          className="w-full bg-green-600 hover:bg-green-700"
-                        >
-                          {isProcessing ? 'Processing...' : 'Confirm COD Order'}
-                        </Button>
+                        <RazorpayPayment
+                          amount={total}
+                          orderId={`order-${Date.now()}`}
+                          onSuccess={async (paymentId) => {
+                            console.log("💳 Payment successful:", paymentId)
+                            await handlePlaceOrder()
+                          }}
+                          onError={(error) => {
+                            console.error("💳 Payment failed:", error)
+                            alert('Payment failed. Please try again.')
+                          }}
+                        />
                       </div>
                     </CardContent>
                   </Card>
                 )}
+
+
               </div>
             )}
 

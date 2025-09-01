@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Download Button</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        button {
+            background: #d946ef;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px;
+        }
+        button:hover {
+            background: #c026d3;
+        }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f0f0f0;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Invoice Download Button Test</h1>
+    
+    <div class="test-section">
+        <h2>Test 1: Direct Window Open (Current My Orders Implementation)</h2>
+        <p>This simulates the current implementation in My Orders page:</p>
+        <button onclick="testDirectWindowOpen()">Test Direct Window Open</button>
+        <div id="result1" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test 2: Download Link Method (Order Details Implementation)</h2>
+        <p>This simulates the enhanced implementation in Order Details page:</p>
+        <button onclick="testDownloadLink()">Test Download Link</button>
+        <div id="result2" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test 3: Fetch and Download Method</h2>
+        <p>Alternative implementation using fetch API:</p>
+        <button onclick="testFetchDownload()">Test Fetch Download</button>
+        <div id="result3" class="result"></div>
+    </div>
+
+    <script>
+        // Test the current My Orders implementation
+        function testDirectWindowOpen() {
+            const orderId = 'cmf03rs9h0001lxbp66eiomzs'; // Sample order ID
+            const invoiceUrl = `/api/orders/${orderId}/invoice`;
+            
+            try {
+                window.open(invoiceUrl, '_blank');
+                document.getElementById('result1').innerHTML = 
+                    `✅ Success: Opened ${invoiceUrl} in new tab`;
+            } catch (error) {
+                document.getElementById('result1').innerHTML = 
+                    `❌ Error: ${error.message}`;
+            }
+        }
+
+        // Test the enhanced Order Details implementation
+        function testDownloadLink() {
+            const orderId = 'cmf03rs9h0001lxbp66eiomzs'; // Sample order ID
+            const orderNumber = 'ORD-680338'; // Sample order number
+            
+            try {
+                const invoiceUrl = `/api/orders/${orderId}/invoice`;
+                const link = document.createElement('a');
+                link.href = invoiceUrl;
+                link.download = `Invoice-${orderNumber}.html`;
+                link.target = '_blank';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                document.getElementById('result2').innerHTML = 
+                    `✅ Success: Created download link for ${invoiceUrl}`;
+            } catch (error) {
+                document.getElementById('result2').innerHTML = 
+                    `❌ Error: ${error.message}`;
+            }
+        }
+
+        // Test fetch and download method
+        async function testFetchDownload() {
+            const orderId = 'cmf03rs9h0001lxbp66eiomzs'; // Sample order ID
+            const orderNumber = 'ORD-680338'; // Sample order number
+            
+            try {
+                const invoiceUrl = `/api/orders/${orderId}/invoice`;
+                
+                document.getElementById('result3').innerHTML = 
+                    `🔄 Fetching invoice from ${invoiceUrl}...`;
+                
+                const response = await fetch(invoiceUrl, {
+                    credentials: 'include'
+                });
+                
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `Invoice-${orderNumber}.html`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    window.URL.revokeObjectURL(url);
+                    
+                    document.getElementById('result3').innerHTML = 
+                        `✅ Success: Downloaded invoice via fetch API`;
+                } else {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+            } catch (error) {
+                document.getElementById('result3').innerHTML = 
+                    `❌ Error: ${error.message}`;
+            }
+        }
+    </script>
+</body>
+</html>

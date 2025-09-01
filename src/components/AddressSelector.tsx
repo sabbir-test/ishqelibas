@@ -12,6 +12,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { MapPin, Plus, Home, Building, Map, Check } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import Link from "next/link"
 
 interface Address {
   id: string
@@ -59,14 +60,16 @@ interface AddressSelectorProps {
   onShippingInfoChange: (info: ShippingInfo) => void
   onAddressSelect: (addressId: string | null) => void
   onContinue: () => void
+  isAuthenticated?: boolean
 }
 
-export default function AddressSelector({ shippingInfo, onShippingInfoChange, onAddressSelect, onContinue }: AddressSelectorProps) {
+export default function AddressSelector({ shippingInfo, onShippingInfoChange, onAddressSelect, onContinue, isAuthenticated = false }: AddressSelectorProps) {
   const { toast } = useToast()
   const [addresses, setAddresses] = useState<Address[]>([])
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [isLoadingAddresses, setIsLoadingAddresses] = useState(true)
   const [isNewAddress, setIsNewAddress] = useState(false)
   const [formData, setFormData] = useState<AddressFormData>({
     type: "Home",
@@ -83,8 +86,12 @@ export default function AddressSelector({ shippingInfo, onShippingInfoChange, on
   })
 
   useEffect(() => {
-    loadAddresses()
-  }, [])
+    if (isAuthenticated) {
+      loadAddresses()
+    } else {
+      setIsLoadingAddresses(false)
+    }
+  }, [isAuthenticated])
 
   useEffect(() => {
     // Auto-select default address if available
@@ -96,14 +103,37 @@ export default function AddressSelector({ shippingInfo, onShippingInfoChange, on
   }, [addresses])
 
   const loadAddresses = async () => {
+    setIsLoadingAddresses(true)
     try {
-      const response = await fetch('/api/addresses')
+      console.log('🏠 Loading addresses...')
+      const response = await fetch('/api/addresses', {
+        credentials: 'include' // Include auth cookies
+      })
+      
+      console.log('📡 Address API response:', response.status)
+      
       if (response.ok) {
         const data = await response.json()
+        console.log('📍 Loaded addresses:', data.addresses?.length || 0)
         setAddresses(data.addresses || [])
+      } else {
+        const errorData = await response.json()
+        console.error('❌ Failed to load addresses:', errorData)
+        toast({
+          title: "Error",
+          description: "Failed to load saved addresses.",
+          variant: "destructive"
+        })
       }
     } catch (error) {
-      console.error('Error loading addresses:', error)
+      console.error('❌ Error loading addresses:', error)
+      toast({
+        title: "Error",
+        description: "Failed to load saved addresses.",
+        variant: "destructive"
+      })
+    } finally {
+      setIsLoadingAddresses(false)
     }
   }
 
@@ -247,9 +277,27 @@ export default function AddressSelector({ shippingInfo, onShippingInfoChange, on
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
-        {addresses.length > 0 && (
+        {!isAuthenticated ? (
+          <div className="text-center py-8 bg-blue-50 rounded-lg">
+            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <MapPin className="h-8 w-8 text-blue-600" />
+            </div>
+            <h3 className="text-lg font-semibold mb-2">Save Your Addresses</h3>
+            <p className="text-gray-600 mb-4">
+              Login to save and select from your previously saved addresses for faster checkout.
+            </p>
+            <Button asChild variant="outline">
+              <Link href="/login?redirect=/checkout">Login to See Saved Addresses</Link>
+            </Button>
+          </div>
+        ) : isLoadingAddresses ? (
+          <div className="text-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-600 mx-auto mb-4"></div>
+            <p className="text-gray-500">Loading saved addresses...</p>
+          </div>
+        ) : addresses.length > 0 ? (
           <div>
-            <h3 className="text-lg font-semibold mb-4">Select a saved address</h3>
+            <h3 className="text-lg font-semibold mb-4">Select a saved address ({addresses.length} found)</h3>
             <RadioGroup value={selectedAddressId || ""} onValueChange={handleAddressSelect}>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {addresses.map((address) => (
@@ -295,6 +343,10 @@ export default function AddressSelector({ shippingInfo, onShippingInfoChange, on
                 ))}
               </div>
             </RadioGroup>
+          </div>
+        ) : (
+          <div className="text-center py-4">
+            <p className="text-gray-500">No saved addresses found. Add a new address below.</p>
           </div>
         )}
 

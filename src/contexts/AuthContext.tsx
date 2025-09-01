@@ -43,16 +43,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refreshUser = async () => {
     try {
+      console.log('🔄 Refreshing user authentication...')
       const response = await fetch("/api/auth/me", {
-        credentials: 'include'
+        credentials: 'include',
+        cache: 'no-cache'
       })
+      
       if (response.ok) {
         const { user } = await response.json()
+        console.log('✅ User authentication refreshed:', user.email)
         setState(prev => ({ ...prev, user, isLoading: false }))
       } else {
+        console.log('❌ User authentication failed:', response.status)
         setState(prev => ({ ...prev, user: null, isLoading: false }))
       }
     } catch (error) {
+      console.error('❌ Error refreshing user:', error)
       setState(prev => ({ ...prev, user: null, isLoading: false }))
     }
   }
@@ -79,6 +85,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       setState(prev => ({ ...prev, user: data.user }))
+      console.log('✅ User logged in:', data.user.email)
       toast({
         title: "Welcome back!",
         description: "You have been successfully logged in.",
@@ -116,6 +123,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       setState(prev => ({ ...prev, user: data.user }))
+      console.log('✅ User registered:', data.user.email)
       toast({
         title: "Account created!",
         description: "Welcome to Ishq-e-Libas. Your account has been created successfully.",
@@ -139,6 +147,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       })
 
       setState(prev => ({ ...prev, user: null }))
+      console.log('✅ User logged out')
       toast({
         title: "Goodbye!",
         description: "You have been successfully logged out.",

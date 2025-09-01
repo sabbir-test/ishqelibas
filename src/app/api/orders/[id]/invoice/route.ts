@@ -8,7 +8,7 @@ export async function GET(
   try {
     const orderId = params.id
 
-    // Get order with all related data
+    // Get order with all related data including address
     const order = await db.order.findUnique({
       where: { id: orderId },
       include: {
@@ -25,6 +25,7 @@ export async function GET(
             zipCode: true
           }
         },
+        address: true, // Include the linked address record
         orderItems: {
           include: {
             product: {
@@ -32,7 +33,8 @@ export async function GET(
                 id: true,
                 name: true,
                 sku: true,
-                images: true
+                images: true,
+                description: true
               }
             }
           }
@@ -61,7 +63,44 @@ export async function GET(
 }
 
 function generateInvoiceHtml(order: any) {
-  const shippingAddress = JSON.parse(order.shippingAddress || '{}')
+  // Use the linked address record for shipping, fallback to user data for billing
+  const shippingAddress = order.address ? {
+    name: `${order.address.firstName || ''} ${order.address.lastName || ''}`.trim() || order.user.name || 'Customer',
+    phone: order.address.phone || order.user.phone || 'N/A',
+    address: order.address.address || 'N/A',
+    city: order.address.city || 'N/A',
+    state: order.address.state || 'N/A',
+    pincode: order.address.zipCode || 'N/A',
+    country: order.address.country || 'India'
+  } : {
+    name: order.user.name || 'Customer',
+    phone: order.user.phone || 'N/A',
+    address: order.user.address || 'N/A',
+    city: order.user.city || 'N/A',
+    state: order.user.state || 'N/A',
+    pincode: order.user.zipCode || 'N/A',
+    country: order.user.country || 'India'
+  }
+
+  // Use address data for billing if available, otherwise use user data
+  const billingAddress = order.address ? {
+    name: `${order.address.firstName || ''} ${order.address.lastName || ''}`.trim() || order.user.name || 'Customer',
+    phone: order.address.phone || order.user.phone || 'N/A',
+    address: order.address.address || order.user.address || 'N/A',
+    city: order.address.city || order.user.city || 'N/A',
+    state: order.address.state || order.user.state || 'N/A',
+    pincode: order.address.zipCode || order.user.zipCode || 'N/A',
+    country: order.address.country || order.user.country || 'India'
+  } : {
+    name: order.user.name || 'Customer',
+    phone: order.user.phone || 'N/A',
+    address: order.user.address || 'N/A',
+    city: order.user.city || 'N/A',
+    state: order.user.state || 'N/A',
+    pincode: order.user.zipCode || 'N/A',
+    country: order.user.country || 'India'
+  }
+
   const orderDate = new Date(order.createdAt).toLocaleDateString('en-IN', {
     year: 'numeric',
     month: 'long',
@@ -249,20 +288,22 @@ function generateInvoiceHtml(order: any) {
         <div class="invoice-details">
             <div class="customer-info">
                 <div class="section-title">Bill To</div>
-                <div class="info-item"><strong>${order.user.name || 'Customer'}</strong></div>
+                <div class="info-item"><strong>${billingAddress.name}</strong></div>
                 <div class="info-item">${order.user.email}</div>
-                <div class="info-item">${order.user.phone || 'N/A'}</div>
-                <div class="info-item">${order.user.address || 'N/A'}</div>
-                <div class="info-item">${order.user.city || 'N/A'}, ${order.user.state || 'N/A'}</div>
-                <div class="info-item">${order.user.zipCode || 'N/A'}</div>
+                <div class="info-item">${billingAddress.phone}</div>
+                <div class="info-item">${billingAddress.address}</div>
+                <div class="info-item">${billingAddress.city}, ${billingAddress.state}</div>
+                <div class="info-item">${billingAddress.pincode}</div>
+                <div class="info-item">${billingAddress.country}</div>
             </div>
             <div class="shipping-info">
                 <div class="section-title">Ship To</div>
-                <div class="info-item"><strong>${shippingAddress.name || order.user.name || 'Customer'}</strong></div>
-                <div class="info-item">${shippingAddress.phone || order.user.phone || 'N/A'}</div>
-                <div class="info-item">${shippingAddress.address || 'N/A'}</div>
-                <div class="info-item">${shippingAddress.city || 'N/A'}, ${shippingAddress.state || 'N/A'}</div>
-                <div class="info-item">${shippingAddress.pincode || 'N/A'}</div>
+                <div class="info-item"><strong>${shippingAddress.name}</strong></div>
+                <div class="info-item">${shippingAddress.phone}</div>
+                <div class="info-item">${shippingAddress.address}</div>
+                <div class="info-item">${shippingAddress.city}, ${shippingAddress.state}</div>
+                <div class="info-item">${shippingAddress.pincode}</div>
+                <div class="info-item">${shippingAddress.country}</div>
             </div>
         </div>
 
@@ -270,6 +311,7 @@ function generateInvoiceHtml(order: any) {
             <thead>
                 <tr>
                     <th>Item</th>
+                    <th>SKU</th>
                     <th>Qty</th>
                     <th>Size</th>
                     <th>Color</th>
@@ -278,16 +320,46 @@ function generateInvoiceHtml(order: any) {
                 </tr>
             </thead>
             <tbody>
-                ${order.orderItems.map((item: any) => `
+                ${order.orderItems.map((item: any, index: number) => {
+                  // Enhanced product name with design details for custom products
+                  let productName = item.product?.name || 'Custom Product'
+                  let productDetails = ''
+                  
+                  if (item.productId === 'custom-blouse') {
+                    productName = 'Custom Blouse Design'
+                    productDetails = `
+                      <div class="text-sm text-gray-600 mt-1">
+                        <div>Custom blouse with selected fabric and design</div>
+                        <div>Tailored to customer measurements</div>
+                      </div>
+                    `
+                  } else if (item.productId === 'custom-salwar-kameez') {
+                    productName = 'Custom Salwar Kameez Design'
+                    productDetails = `
+                      <div class="text-sm text-gray-600 mt-1">
+                        <div>Custom salwar kameez with selected design</div>
+                        <div>Tailored to customer measurements</div>
+                      </div>
+                    `
+                  } else if (item.product?.description) {
+                    productDetails = `<div class="text-sm text-gray-600 mt-1">${item.product.description}</div>`
+                  }
+                  
+                  return `
                     <tr>
-                        <td>${item.product?.name || 'Custom Product'}</td>
+                        <td>
+                          <div class="font-medium">${productName}</div>
+                          ${productDetails}
+                        </td>
+                        <td class="text-sm">${item.product?.sku || 'CUSTOM'}</td>
                         <td>${item.quantity}</td>
-                        <td>${item.size || 'N/A'}</td>
-                        <td>${item.color || 'N/A'}</td>
+                        <td>${item.size || 'Custom'}</td>
+                        <td>${item.color || 'As Selected'}</td>
                         <td>₹${item.price.toFixed(2)}</td>
                         <td>₹${(item.price * item.quantity).toFixed(2)}</td>
                     </tr>
-                `).join('')}
+                  `
+                }).join('')}
             </tbody>
         </table>
 

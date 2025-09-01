@@ -80,8 +80,27 @@ export async function POST(request: NextRequest) {
     })
     console.log('✅ Order created successfully:', order.orderNumber)
 
+    // Validate all items before creating any order items
+    console.log('🔍 Pre-validating all order items...')
+    for (const item of items) {
+      if (!item.productId) {
+        throw new Error(`Missing productId for item: ${item.name}`)
+      }
+      
+      if (!item.quantity || item.quantity <= 0) {
+        throw new Error(`Invalid quantity for item: ${item.name}`)
+      }
+      
+      if (!item.finalPrice || item.finalPrice < 0) {
+        throw new Error(`Invalid price for item: ${item.name}`)
+      }
+    }
+    console.log('✅ All items pre-validated successfully')
+
     // Create order items
     for (const item of items) {
+      console.log('📦 Processing item:', { productId: item.productId, name: item.name, quantity: item.quantity, price: item.finalPrice })
+      
       // Handle custom design orders
       if (item.productId === "custom-blouse" && item.customDesign) {
         // Create custom order record
@@ -112,23 +131,100 @@ export async function POST(request: NextRequest) {
           }
         })
       } else {
+        // Validate product exists before creating order item
+        if (item.productId) {
+          const productExists = await db.product.findUnique({
+            where: { id: item.productId }
+          })
+          
+          if (!productExists) {
+            console.error('❌ Product not found:', item.productId)
+            
+            // Handle virtual products for custom designs
+            if (item.productId === 'custom-blouse' || item.productId === 'custom-salwar-kameez') {
+              console.log('🔧 Creating missing virtual product:', item.productId)
+              
+              // Get or create virtual category
+              let virtualCategory = await db.category.findFirst({
+                where: { name: 'Virtual Products' }
+              })
+              
+              if (!virtualCategory) {
+                virtualCategory = await db.category.create({
+                  data: {
+                    name: 'Virtual Products',
+                    description: 'Virtual products for custom designs',
+                    isActive: true
+                  }
+                })
+              }
+              
+              // Create the virtual product
+              const virtualProductData = item.productId === 'custom-blouse' ? {
+                id: 'custom-blouse',
+                name: 'Custom Blouse Design',
+                description: 'Virtual product for custom blouse designs',
+                sku: 'CUSTOM-BLOUSE-001'
+              } : {
+                id: 'custom-salwar-kameez',
+                name: 'Custom Salwar Kameez Design',
+                description: 'Virtual product for custom salwar kameez designs',
+                sku: 'CUSTOM-SALWAR-001'
+              }
+              
+              await db.product.create({
+                data: {
+                  ...virtualProductData,
+                  price: 0,
+                  finalPrice: 0,
+                  stock: 999999,
+                  isActive: true,
+                  isFeatured: false,
+                  categoryId: virtualCategory.id
+                }
+              })
+              
+              console.log('✅ Created virtual product:', item.productId)
+            } else {
+              throw new Error(`Product not found: ${item.productId}`)
+            }
+          }
+        }
+        
         // Handle regular product orders
-        await db.orderItem.create({
+        console.log('📦 Creating order item with data:', {
+          orderId: order.id,
+          productId: item.productId,
+          quantity: item.quantity,
+          price: item.finalPrice,
+          size: item.size || null,
+          color: item.color || null
+        })
+        
+        const orderItem = await db.orderItem.create({
           data: {
             orderId: order.id,
             productId: item.productId,
             quantity: item.quantity,
             price: item.finalPrice,
-            size: item.size,
-            color: item.color
+            size: item.size || null,
+            color: item.color || null
           }
         })
+        
+        console.log('✅ Order item created successfully:', orderItem.id)
 
         // Update product stock only for regular products (not custom designs)
-        await db.product.update({
-          where: { id: item.productId },
-          data: { stock: { decrement: item.quantity } }
-        })
+        if (item.productId && item.productId !== 'custom-blouse' && item.productId !== 'custom-salwar-kameez') {
+          try {
+            await db.product.update({
+              where: { id: item.productId },
+              data: { stock: { decrement: item.quantity } }
+            })
+          } catch (stockError) {
+            console.warn('⚠️ Could not update stock for product:', item.productId, stockError.message)
+          }
+        }
       }
     }
 
@@ -191,7 +287,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized access to orders" }, { status: 403 })
     }
 
-    // Fetch orders only for the authenticated user
+    // Fetch orders only for the authenticated user with enhanced data
     const allOrders = await db.order.findMany({
       where: { userId: authenticatedUser.id },
       include: {
@@ -202,7 +298,8 @@ export async function GET(request: NextRequest) {
                 id: true,
                 name: true,
                 images: true,
-                sku: true
+                sku: true,
+                description: true
               }
             }
           }
@@ -210,7 +307,15 @@ export async function GET(request: NextRequest) {
         address: true,
         user: {
           select: {
+            id: true,
             email: true,
+            name: true,
+            phone: true,
+            address: true,
+            city: true,
+            state: true,
+            country: true,
+            zipCode: true,
             isActive: true
           }
         }
@@ -228,13 +333,15 @@ export async function GET(request: NextRequest) {
         return false
       }
 
-      // Check for dummy email patterns (but allow real users)
+      // Check for dummy email patterns (but allow demo users)
       const dummyEmailPatterns = [
-        /^demo@example\./i,
         /^dummy@/i,
         /^sample@/i,
         /^fake@/i,
-        /^placeholder@/i
+        /^placeholder@/i,
+        /^noreply@/i,
+        /^donotreply@/i,
+        /^test-dummy@/i
       ]
       
       const isDummyEmail = dummyEmailPatterns.some(pattern => 
@@ -245,6 +352,9 @@ export async function GET(request: NextRequest) {
         console.log(`🚫 Filtering out order ${order.orderNumber}: Dummy email ${order.user?.email}`)
         return false
       }
+      
+      // Allow demo@example.com for testing purposes
+      // This is a legitimate test account, not dummy data
 
       // Check for dummy order number patterns
       const dummyOrderPatterns = [

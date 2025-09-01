@@ -401,7 +401,21 @@ export default function OrderDetailPage() {
                 <CardTitle>Actions</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <Button variant="outline" className="w-full">
+                <Button 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={() => {
+                    // Create a temporary link to download the invoice
+                    const invoiceUrl = `/api/orders/${order.id}/invoice`
+                    const link = document.createElement('a')
+                    link.href = invoiceUrl
+                    link.download = `Invoice-${order.orderNumber}.html`
+                    link.target = '_blank'
+                    document.body.appendChild(link)
+                    link.click()
+                    document.body.removeChild(link)
+                  }}
+                >
                   <Download className="h-4 w-4 mr-2" />
                   Download Invoice
                 </Button>

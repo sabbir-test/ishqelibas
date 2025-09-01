@@ -56,13 +56,16 @@ export default function OrderConfirmationPage() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (orderId) {
+    if (orderId && authState.user) {
       loadOrderDetails()
-    } else {
+    } else if (orderId && !authState.isLoading && !authState.user) {
+      setError("Please log in to view order details")
+      setIsLoading(false)
+    } else if (!orderId) {
       setError("Order ID not found")
       setIsLoading(false)
     }
-  }, [orderId])
+  }, [orderId, authState.user, authState.isLoading])
 
   const loadOrderDetails = async () => {
     try {
@@ -72,8 +75,10 @@ export default function OrderConfirmationPage() {
         throw new Error('User not authenticated')
       }
 
-      const response = await fetch(`/api/orders`, {
-        credentials: 'include'
+      console.log('🔄 Loading order details for:', authState.user.email)
+      const response = await fetch(`/api/orders?_t=${Date.now()}`, {
+        credentials: 'include',
+        cache: 'no-cache'
       })
 
       if (response.ok) {
@@ -117,10 +122,20 @@ export default function OrderConfirmationPage() {
           
           setOrder(transformedOrder)
         } else {
+          console.log('❌ Order not found in response')
           setError("Order not found")
         }
       } else {
-        setError("Failed to load order details")
+        console.error('❌ Failed to load order details:', response.status)
+        if (response.status === 401) {
+          setError("Authentication required. Please log in again.")
+          // Refresh authentication
+          if (authState.refreshUser) {
+            await authState.refreshUser()
+          }
+        } else {
+          setError("Failed to load order details")
+        }
       }
     } catch (error) {
       console.error('Error loading order details:', error)
