@@ -1,0 +1,20 @@
+[
+  {
+    "id": "cmeyqu6yq0000lxuoo0jne5zv",
+    "name": "Traditional",
+    "description": "Traditional blouse designs",
+    "image": null,
+    "isActive": true,
+    "createdAt": "2025-08-30T20:58:11.522Z",
+    "updatedAt": "2025-08-30T20:58:11.522Z"
+  },
+  {
+    "id": "cmeyqu6z10001lxuo2chyk07u",
+    "name": "Modern",
+    "description": "Modern blouse designs",
+    "image": null,
+    "isActive": true,
+    "createdAt": "2025-08-30T20:58:11.534Z",
+    "updatedAt": "2025-08-30T20:58:11.534Z"
+  }
+]

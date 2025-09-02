@@ -1,0 +1,38 @@
+[
+  {
+    "id": "cmeyqu6zb0003lxuo4m4jmm89",
+    "name": "Round Neck Design",
+    "type": "FRONT",
+    "image": null,
+    "description": "Classic round neck design",
+    "stitchCost": 299,
+    "isActive": true,
+    "createdAt": "2025-08-30T20:58:11.544Z",
+    "updatedAt": "2025-08-30T20:58:11.544Z",
+    "categoryId": "cmeyqu6yq0000lxuoo0jne5zv"
+  },
+  {
+    "id": "cmeyqu6zi0005lxuocss6xmpa",
+    "name": "V-Neck Design",
+    "type": "FRONT",
+    "image": null,
+    "description": "Elegant V-neck design",
+    "stitchCost": 399,
+    "isActive": true,
+    "createdAt": "2025-08-30T20:58:11.551Z",
+    "updatedAt": "2025-08-30T20:58:11.551Z",
+    "categoryId": "cmeyqu6z10001lxuo2chyk07u"
+  },
+  {
+    "id": "cmeyqu6zq0007lxuoc64ocnm9",
+    "name": "Simple Back",
+    "type": "BACK",
+    "image": null,
+    "description": "Simple back design",
+    "stitchCost": 199,
+    "isActive": true,
+    "createdAt": "2025-08-30T20:58:11.559Z",
+    "updatedAt": "2025-08-30T20:58:11.559Z",
+    "categoryId": "cmeyqu6yq0000lxuoo0jne5zv"
+  }
+]

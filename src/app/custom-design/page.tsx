@@ -26,7 +26,7 @@ export default function CustomDesignPage() {
           <p className="text-gray-600">Select your preferred custom design experience</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           <Card className="hover:shadow-lg transition-shadow duration-300 cursor-pointer group">
             <Link href="/custom-design/blouse">
               <CardHeader className="text-center pb-4">
@@ -97,6 +97,44 @@ export default function CustomDesignPage() {
                 </div>
                 <Button className="w-full bg-purple-600 hover:bg-purple-700 group-hover:bg-purple-700">
                   Start Salwar Kameez Design
+                  <ArrowRight className="h-4 w-4 ml-2" />
+                </Button>
+              </CardContent>
+            </Link>
+          </Card>
+
+          <Card className="hover:shadow-lg transition-shadow duration-300 cursor-pointer group">
+            <Link href="/custom-design/lehenga">
+              <CardHeader className="text-center pb-4">
+                <div className="w-20 h-20 mx-auto mb-4 bg-orange-100 rounded-full flex items-center justify-center group-hover:bg-orange-200 transition-colors">
+                  <Package className="h-10 w-10 text-orange-600" />
+                </div>
+                <CardTitle className="text-xl mb-2">Design Your Custom Lehenga</CardTitle>
+                <CardDescription className="text-gray-600">
+                  Create an exquisite lehenga with intricate designs and perfect tailoring
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="space-y-3 mb-6">
+                  <div className="flex items-center text-sm text-gray-600">
+                    <span className="w-2 h-2 bg-orange-500 rounded-full mr-3"></span>
+                    Luxurious fabric selection
+                  </div>
+                  <div className="flex items-center text-sm text-gray-600">
+                    <span className="w-2 h-2 bg-orange-500 rounded-full mr-3"></span>
+                    Elegant blouse & lehenga designs
+                  </div>
+                  <div className="flex items-center text-sm text-gray-600">
+                    <span className="w-2 h-2 bg-orange-500 rounded-full mr-3"></span>
+                    Professional measurements
+                  </div>
+                  <div className="flex items-center text-sm text-gray-600">
+                    <span className="w-2 h-2 bg-orange-500 rounded-full mr-3"></span>
+                    Complete bridal solution
+                  </div>
+                </div>
+                <Button className="w-full bg-orange-600 hover:bg-orange-700 group-hover:bg-orange-700">
+                  Start Lehenga Design
                   <ArrowRight className="h-4 w-4 ml-2" />
                 </Button>
               </CardContent>

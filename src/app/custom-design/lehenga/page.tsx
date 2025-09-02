@@ -49,7 +49,7 @@ interface OwnFabricDetails {
   image?: string
 }
 
-interface SalwarKameezModel {
+interface LehengaModel {
   id: string
   name: string
   designName: string
@@ -63,17 +63,20 @@ interface SalwarKameezModel {
   updatedAt: string
 }
 
-interface CustomSalwarDesign {
+interface CustomLehengaDesign {
   fabric: Fabric | null
-  selectedModel: SalwarKameezModel | null
+  selectedModel: LehengaModel | null
   measurements: {
-    bust: string
+    // Blouse measurements
+    chest: string
     waist: string
-    hips: string
     shoulder: string
-    kameezLength: string
     sleeveLength: string
-    salwarLength: string
+    blouseLength: string
+    // Lehenga measurements
+    lehengaWaist: string
+    lehengaHip: string
+    lehengaLength: string
     notes: string
   }
   appointmentDate: string | null
@@ -81,19 +84,20 @@ interface CustomSalwarDesign {
   ownFabricDetails?: OwnFabricDetails | null
 }
 
-export default function CustomSalwarKameezDesignPage() {
+export default function CustomLehengaDesignPage() {
   const [currentStep, setCurrentStep] = useState<DesignStep>("fabric")
-  const [design, setDesign] = useState<CustomSalwarDesign>({
+  const [design, setDesign] = useState<CustomLehengaDesign>({
     fabric: null,
     selectedModel: null,
     measurements: {
-      bust: "",
+      chest: "",
       waist: "",
-      hips: "",
       shoulder: "",
-      kameezLength: "",
       sleeveLength: "",
-      salwarLength: "",
+      blouseLength: "",
+      lehengaWaist: "",
+      lehengaHip: "",
+      lehengaLength: "",
       notes: ""
     },
     appointmentDate: null,
@@ -107,7 +111,7 @@ export default function CustomSalwarKameezDesignPage() {
   })
   const [isProcessing, setIsProcessing] = useState(false)
   const [fabrics, setFabrics] = useState<Fabric[]>([])
-  const [models, setModels] = useState<SalwarKameezModel[]>([])
+  const [models, setModels] = useState<LehengaModel[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showCollectionCard, setShowCollectionCard] = useState(true)
@@ -132,7 +136,7 @@ export default function CustomSalwarKameezDesignPage() {
       fetchFabricCollectionSetting()
       fetchFabrics()
     } else if (currentStep === "model") {
-      fetchSalwarKameezModels()
+      fetchLehengaModels()
     } else if (currentStep === "measurements") {
       fetchManualMeasurementsSetting()
     }
@@ -203,23 +207,30 @@ export default function CustomSalwarKameezDesignPage() {
     }
   }
 
-  const fetchSalwarKameezModels = async () => {
+  const fetchLehengaModels = async () => {
     setIsLoading(true)
     setError(null)
     try {
+      // For now, we'll use salwar models as placeholder until lehenga models are implemented
       const response = await fetch("/api/salwar-kameez-models?page=1&limit=100")
       if (response.ok) {
         const data = await response.json()
-        setModels(data.models)
+        // Transform salwar models to lehenga models for demo purposes
+        const lehengaModels = data.models.map(model => ({
+          ...model,
+          name: model.name.replace("Salwar", "Lehenga"),
+          designName: model.designName.replace("Salwar", "Lehenga")
+        }))
+        setModels(lehengaModels)
       } else {
-        throw new Error("Failed to fetch salwar kameez models")
+        throw new Error("Failed to fetch lehenga models")
       }
     } catch (error) {
-      console.error("Error fetching salwar kameez models:", error)
+      console.error("Error fetching lehenga models:", error)
       setError("Failed to load models. Please try again.")
       toast({
         title: "Error",
-        description: "Failed to load salwar kameez models. Please try again.",
+        description: "Failed to load lehenga models. Please try again.",
         variant: "destructive"
       })
     } finally {
@@ -233,7 +244,7 @@ export default function CustomSalwarKameezDesignPage() {
     let totalPrice = 0
     
     if (!design.fabric.isOwnFabric && design.fabric.pricePerMeter) {
-      totalPrice += design.fabric.pricePerMeter * 3 // More fabric needed for salwar kameez
+      totalPrice += design.fabric.pricePerMeter * 4 // More fabric needed for lehenga
     }
     
     if (design.selectedModel && design.selectedModel.finalPrice) {
@@ -247,7 +258,7 @@ export default function CustomSalwarKameezDesignPage() {
     return `₹${price.toLocaleString()}`
   }
 
-  const handleModelSelect = (model: SalwarKameezModel) => {
+  const handleModelSelect = (model: LehengaModel) => {
     setDesign(prev => ({
       ...prev,
       selectedModel: model
@@ -255,7 +266,7 @@ export default function CustomSalwarKameezDesignPage() {
 
     toast({
       title: "Model Selected",
-      description: `${model.name} selected for your salwar kameez`
+      description: `${model.name} selected for your lehenga`
     })
   }
 
@@ -287,7 +298,7 @@ export default function CustomSalwarKameezDesignPage() {
     if (!design.fabric) {
       toast({
         title: "Fabric required",
-        description: "Please select a fabric for your custom salwar kameez.",
+        description: "Please select a fabric for your custom lehenga.",
         variant: "destructive"
       })
       return
@@ -296,7 +307,7 @@ export default function CustomSalwarKameezDesignPage() {
     if (!design.selectedModel) {
       toast({
         title: "Model required",
-        description: "Please select a model for your custom salwar kameez.",
+        description: "Please select a model for your custom lehenga.",
         variant: "destructive"
       })
       return
@@ -314,30 +325,30 @@ export default function CustomSalwarKameezDesignPage() {
     setIsProcessing(true)
     try {
       const customOrder = {
-        productId: "custom-salwar-kameez",
-        name: `Custom Salwar Kameez - ${design.selectedModel.name}`,
+        productId: "custom-lehenga",
+        name: `Custom Lehenga - ${design.selectedModel.name}`,
         price: calculatePrice(),
         finalPrice: calculatePrice(),
         quantity: 1,
         image: design.selectedModel.image || "/api/placeholder/200/200",
-        sku: `CUSTOM-SK-${Date.now()}`,
+        sku: `CUSTOM-LH-${Date.now()}`,
         customDesign: {
           ...design,
-          appointmentPurpose: "salwar" // Automatically set purpose for salwar appointments
+          appointmentPurpose: "lehenga" // Automatically set purpose for lehenga appointments
         }
       }
 
       addItem(customOrder)
       toast({
         title: "Added to cart",
-        description: "Your custom salwar kameez design has been added to cart.",
+        description: "Your custom lehenga design has been added to cart.",
       })
       
       setCurrentStep("fabric")
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to add custom salwar kameez to cart.",
+        description: "Failed to add custom lehenga to cart.",
         variant: "destructive"
       })
     } finally {
@@ -349,7 +360,7 @@ export default function CustomSalwarKameezDesignPage() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="h-12 w-12 animate-spin text-purple-600 mx-auto mb-4" />
+          <Loader2 className="h-12 w-12 animate-spin text-orange-600 mx-auto mb-4" />
           <p className="text-gray-600">Loading design options...</p>
         </div>
       </div>
@@ -377,8 +388,8 @@ export default function CustomSalwarKameezDesignPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between py-6">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Custom Salwar Kameez Design</h1>
-              <p className="text-gray-600">Create your perfect custom-fit salwar kameez</p>
+              <h1 className="text-3xl font-bold text-gray-900">Custom Lehenga Design</h1>
+              <p className="text-gray-600">Create your perfect custom-fit lehenga</p>
             </div>
             <Button variant="outline" asChild>
               <Link href="/custom-design">
@@ -397,7 +408,7 @@ export default function CustomSalwarKameezDesignPage() {
               <div key={step.id} className="flex items-center">
                 <div className={`flex items-center justify-center w-10 h-10 rounded-full border-2 ${
                   index <= currentStepIndex
-                    ? "bg-purple-600 border-purple-600 text-white"
+                    ? "bg-orange-600 border-orange-600 text-white"
                     : "border-gray-300 text-gray-400"
                 }`}>
                   <step.icon className="h-5 w-5" />
@@ -451,7 +462,7 @@ export default function CustomSalwarKameezDesignPage() {
                             <div
                               key={fabric.id}
                               className={`p-4 border rounded-lg cursor-pointer transition-all duration-200 hover:shadow-md ${
-                                design.fabric?.id === fabric.id ? "ring-2 ring-purple-600 bg-purple-50" : "border-gray-200"
+                                design.fabric?.id === fabric.id ? "ring-2 ring-orange-600 bg-orange-50" : "border-gray-200"
                               }`}
                               onClick={() => {
                                 setDesign(prev => ({ 
@@ -489,13 +500,13 @@ export default function CustomSalwarKameezDesignPage() {
                                       />
                                       <span className="text-sm text-gray-600">{fabric.color}</span>
                                     </div>
-                                    <p className="text-lg font-bold text-purple-600">
+                                    <p className="text-lg font-bold text-orange-600">
                                       ₹{fabric.pricePerMeter}/m
                                     </p>
                                   </div>
                                 </div>
                                 {design.fabric?.id === fabric.id && (
-                                  <CheckCircle className="h-5 w-5 text-purple-600" />
+                                  <CheckCircle className="h-5 w-5 text-orange-600" />
                                 )}
                               </div>
                             </div>
@@ -506,7 +517,7 @@ export default function CustomSalwarKameezDesignPage() {
                         <div className="mt-6 pt-4 border-t">
                           <Button 
                             onClick={() => setCurrentStep("model")}
-                            className="w-full bg-purple-600 hover:bg-purple-700"
+                            className="w-full bg-orange-600 hover:bg-orange-700"
                           >
                             Continue to Model Selection
                             <ArrowRight className="h-4 w-4 ml-2" />
@@ -524,18 +535,18 @@ export default function CustomSalwarKameezDesignPage() {
                       Provide Your Own Fabric
                     </CardTitle>
                     <CardDescription>
-                      Use your own fabric for a truly custom salwar kameez
+                      Use your own fabric for a truly custom lehenga
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
+                    <div className="p-4 bg-orange-50 rounded-lg border border-orange-200">
                       <div className="flex items-start space-x-3">
-                        <CheckCircle className="h-5 w-5 text-purple-600 mt-0.5" />
+                        <CheckCircle className="h-5 w-5 text-orange-600 mt-0.5" />
                         <div>
-                          <h4 className="font-medium text-purple-900">Bring Your Own Fabric</h4>
-                          <p className="text-sm text-purple-700 mt-1">
+                          <h4 className="font-medium text-orange-900">Bring Your Own Fabric</h4>
+                          <p className="text-sm text-orange-700 mt-1">
                             Have a special fabric you'd like to use? We can create a beautiful 
-                            salwar kameez with your own material. Just provide the details below.
+                            lehenga with your own material. Just provide the details below.
                           </p>
                         </div>
                       </div>
@@ -546,7 +557,7 @@ export default function CustomSalwarKameezDesignPage() {
                         <Label htmlFor="fabricName">Fabric Name/Type*</Label>
                         <Input
                           id="fabricName"
-                          placeholder="e.g., Silk, Cotton, Georgette, Chiffon"
+                          placeholder="e.g., Silk, Georgette, Net, Velvet"
                           value={design.ownFabricDetails?.name || ''}
                           onChange={(e) => setDesign(prev => ({
                             ...prev,
@@ -579,7 +590,7 @@ export default function CustomSalwarKameezDesignPage() {
                         <Input
                           id="fabricQuantity"
                           type="number"
-                          placeholder="3.0"
+                          placeholder="4.0"
                           value={design.ownFabricDetails?.quantity || ''}
                           onChange={(e) => setDesign(prev => ({
                             ...prev,
@@ -611,7 +622,7 @@ export default function CustomSalwarKameezDesignPage() {
 
                     <div className="pt-4 border-t">
                       <Button 
-                        className="w-full bg-purple-600 hover:bg-purple-700"
+                        className="w-full bg-orange-600 hover:bg-orange-700"
                         onClick={() => {
                           if (design.ownFabricDetails?.name && design.ownFabricDetails?.color && design.ownFabricDetails?.quantity > 0) {
                             const ownFabric: Fabric = {
@@ -652,7 +663,7 @@ export default function CustomSalwarKameezDesignPage() {
           <div className="space-y-8">
             <div className="text-center mb-8">
               <h2 className="text-2xl font-bold mb-2">Select Your Model</h2>
-              <p className="text-gray-600">Choose from our beautiful salwar kameez designs</p>
+              <p className="text-gray-600">Choose from our beautiful lehenga designs</p>
             </div>
 
             <div className="space-y-6">
@@ -669,7 +680,7 @@ export default function CustomSalwarKameezDesignPage() {
 
                     return (
                       <Card key={model.id} className={`overflow-hidden hover:shadow-lg transition-shadow duration-200 cursor-pointer ${
-                        isSelected ? "ring-2 ring-purple-600 bg-purple-50" : ""
+                        isSelected ? "ring-2 ring-orange-600 bg-orange-50" : ""
                       }`} onClick={() => handleModelSelect(model)}>
                         <CardHeader className="pb-3">
                           <div className="relative">
@@ -682,8 +693,8 @@ export default function CustomSalwarKameezDesignPage() {
                                 />
                               </div>
                             ) : (
-                              <div className="w-full h-48 bg-gradient-to-br from-purple-100 to-pink-100 rounded-lg flex items-center justify-center">
-                                <Package className="h-12 w-12 text-purple-400" />
+                              <div className="w-full h-48 bg-gradient-to-br from-orange-100 to-pink-100 rounded-lg flex items-center justify-center">
+                                <Package className="h-12 w-12 text-orange-400" />
                               </div>
                             )}
                             
@@ -706,7 +717,7 @@ export default function CustomSalwarKameezDesignPage() {
                         <CardContent className="space-y-3">
                           <div>
                             <CardTitle className="text-lg mb-1">{model.name}</CardTitle>
-                            <p className="text-sm text-purple-600 font-medium">{model.designName}</p>
+                            <p className="text-sm text-orange-600 font-medium">{model.designName}</p>
                             {model.description && (
                               <p className="text-sm text-gray-600 line-clamp-2 mt-1">{model.description}</p>
                             )}
@@ -716,7 +727,7 @@ export default function CustomSalwarKameezDesignPage() {
                             <div>
                               {model.discount ? (
                                 <div className="flex items-center gap-2">
-                                  <span className="text-lg font-bold text-purple-600">
+                                  <span className="text-lg font-bold text-orange-600">
                                     {formatPrice(model.finalPrice)}
                                   </span>
                                   <span className="text-sm text-gray-500 line-through">
@@ -724,7 +735,7 @@ export default function CustomSalwarKameezDesignPage() {
                                   </span>
                                 </div>
                               ) : (
-                                <span className="text-lg font-bold text-purple-600">
+                                <span className="text-lg font-bold text-orange-600">
                                   {formatPrice(model.finalPrice)}
                                 </span>
                               )}
@@ -754,7 +765,7 @@ export default function CustomSalwarKameezDesignPage() {
                   }
                   setCurrentStep("measurements")
                 }}
-                className="bg-purple-600 hover:bg-purple-700"
+                className="bg-orange-600 hover:bg-orange-700"
                 disabled={!design.selectedModel}
               >
                 Continue to Measurements
@@ -775,7 +786,7 @@ export default function CustomSalwarKameezDesignPage() {
             <div className="max-w-4xl mx-auto">
               {isLoadingConfig ? (
                 <div className="flex items-center justify-center py-12">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mr-3"></div>
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600 mr-3"></div>
                   <span className="text-gray-600">Loading configuration...</span>
                 </div>
               ) : (
@@ -792,78 +803,96 @@ export default function CustomSalwarKameezDesignPage() {
                         </CardDescription>
                       </CardHeader>
                       <CardContent className="p-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <Label htmlFor="bust">Bust (inches)*</Label>
-                            <Input
-                              id="bust"
-                              type="number"
-                              placeholder="36"
-                              value={design.measurements.bust}
-                              onChange={(e) => handleMeasurementChange("bust", e.target.value)}
-                            />
+                        <div className="space-y-4">
+                          <h4 className="font-medium text-orange-800 mb-3">BLOUSE MEASUREMENTS</h4>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <Label htmlFor="chest">Chest (inches)*</Label>
+                              <Input
+                                id="chest"
+                                type="number"
+                                placeholder="36"
+                                value={design.measurements.chest}
+                                onChange={(e) => handleMeasurementChange("chest", e.target.value)}
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor="waist">Waist (inches)*</Label>
+                              <Input
+                                id="waist"
+                                type="number"
+                                placeholder="30"
+                                value={design.measurements.waist}
+                                onChange={(e) => handleMeasurementChange("waist", e.target.value)}
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor="shoulder">Shoulder (inches)*</Label>
+                              <Input
+                                id="shoulder"
+                                type="number"
+                                placeholder="15"
+                                value={design.measurements.shoulder}
+                                onChange={(e) => handleMeasurementChange("shoulder", e.target.value)}
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor="sleeveLength">Sleeve Length (inches)*</Label>
+                              <Input
+                                id="sleeveLength"
+                                type="number"
+                                placeholder="18"
+                                value={design.measurements.sleeveLength}
+                                onChange={(e) => handleMeasurementChange("sleeveLength", e.target.value)}
+                              />
+                            </div>
+                            <div className="md:col-span-2">
+                              <Label htmlFor="blouseLength">Blouse Length (inches)*</Label>
+                              <Input
+                                id="blouseLength"
+                                type="number"
+                                placeholder="15"
+                                value={design.measurements.blouseLength}
+                                onChange={(e) => handleMeasurementChange("blouseLength", e.target.value)}
+                              />
+                            </div>
                           </div>
-                          <div>
-                            <Label htmlFor="waist">Waist (inches)*</Label>
-                            <Input
-                              id="waist"
-                              type="number"
-                              placeholder="30"
-                              value={design.measurements.waist}
-                              onChange={(e) => handleMeasurementChange("waist", e.target.value)}
-                            />
-                          </div>
-                          <div>
-                            <Label htmlFor="hips">Hips (inches)*</Label>
-                            <Input
-                              id="hips"
-                              type="number"
-                              placeholder="38"
-                              value={design.measurements.hips}
-                              onChange={(e) => handleMeasurementChange("hips", e.target.value)}
-                            />
-                          </div>
-                          <div>
-                            <Label htmlFor="shoulder">Shoulder (inches)*</Label>
-                            <Input
-                              id="shoulder"
-                              type="number"
-                              placeholder="15"
-                              value={design.measurements.shoulder}
-                              onChange={(e) => handleMeasurementChange("shoulder", e.target.value)}
-                            />
-                          </div>
-                          <div>
-                            <Label htmlFor="kameezLength">Kameez Length (inches)*</Label>
-                            <Input
-                              id="kameezLength"
-                              type="number"
-                              placeholder="42"
-                              value={design.measurements.kameezLength}
-                              onChange={(e) => handleMeasurementChange("kameezLength", e.target.value)}
-                            />
-                          </div>
-                          <div>
-                            <Label htmlFor="sleeveLength">Sleeve Length (inches)*</Label>
-                            <Input
-                              id="sleeveLength"
-                              type="number"
-                              placeholder="18"
-                              value={design.measurements.sleeveLength}
-                              onChange={(e) => handleMeasurementChange("sleeveLength", e.target.value)}
-                            />
-                          </div>
-                          <div className="md:col-span-2">
-                            <Label htmlFor="salwarLength">Salwar Length (inches)*</Label>
-                            <Input
-                              id="salwarLength"
-                              type="number"
-                              placeholder="38"
-                              value={design.measurements.salwarLength}
-                              onChange={(e) => handleMeasurementChange("salwarLength", e.target.value)}
-                            />
+                          
+                          <h4 className="font-medium text-orange-800 mb-3 mt-6">LEHENGA MEASUREMENTS</h4>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <Label htmlFor="lehengaWaist">Lehenga Waist (inches)*</Label>
+                              <Input
+                                id="lehengaWaist"
+                                type="number"
+                                placeholder="30"
+                                value={design.measurements.lehengaWaist}
+                                onChange={(e) => handleMeasurementChange("lehengaWaist", e.target.value)}
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor="lehengaHip">Lehenga Hip (inches)*</Label>
+                              <Input
+                                id="lehengaHip"
+                                type="number"
+                                placeholder="38"
+                                value={design.measurements.lehengaHip}
+                                onChange={(e) => handleMeasurementChange("lehengaHip", e.target.value)}
+                              />
+                            </div>
+                            <div className="md:col-span-2">
+                              <Label htmlFor="lehengaLength">Lehenga Length (inches)*</Label>
+                              <Input
+                                id="lehengaLength"
+                                type="number"
+                                placeholder="42"
+                                value={design.measurements.lehengaLength}
+                                onChange={(e) => handleMeasurementChange("lehengaLength", e.target.value)}
+                              />
+                            </div>
                           </div>
                         </div>
+                        
                         <div className="mt-4">
                           <Label htmlFor="notes">Additional Notes</Label>
                           <Textarea
@@ -874,6 +903,7 @@ export default function CustomSalwarKameezDesignPage() {
                             rows={3}
                           />
                         </div>
+                        
                         <div className="mt-6">
                           <Button 
                             onClick={() => {
@@ -949,34 +979,13 @@ export default function CustomSalwarKameezDesignPage() {
                         {design.appointmentType && (
                           <div className="space-y-4">
                             <div>
-                              <Label htmlFor="appointmentDate">Preferred Date</Label>
+                              <Label htmlFor="appointmentDate">Preferred Date & Time</Label>
                               <Input
                                 id="appointmentDate"
-                                type="date"
-                                min={new Date().toISOString().split('T')[0]}
-                                value={design.appointmentDate ? new Date(design.appointmentDate).toISOString().split('T')[0] : ''}
-                                onChange={(e) => {
-                                  const date = new Date(e.target.value)
-                                  const existingTime = design.appointmentDate ? new Date(design.appointmentDate) : new Date()
-                                  date.setHours(existingTime.getHours(), existingTime.getMinutes())
-                                  handleAppointmentDateChange(date.toISOString())
-                                }}
-                                className="mt-1"
-                              />
-                            </div>
-                            
-                            <div>
-                              <Label htmlFor="appointmentTime">Preferred Time</Label>
-                              <Input
-                                id="appointmentTime"
-                                type="time"
-                                value={design.appointmentDate ? new Date(design.appointmentDate).toTimeString().slice(0, 5) : ''}
-                                onChange={(e) => {
-                                  const time = e.target.value.split(':')
-                                  const existingDate = design.appointmentDate ? new Date(design.appointmentDate) : new Date()
-                                  existingDate.setHours(parseInt(time[0]), parseInt(time[1]))
-                                  handleAppointmentDateChange(existingDate.toISOString())
-                                }}
+                                type="datetime-local"
+                                value={design.appointmentDate || ''}
+                                onChange={(e) => handleAppointmentDateChange(e.target.value)}
+                                min={new Date().toISOString().slice(0, 16)}
                                 className="mt-1"
                               />
                             </div>
@@ -1021,7 +1030,7 @@ export default function CustomSalwarKameezDesignPage() {
           <div className="space-y-6">
             <div className="text-center mb-8">
               <h2 className="text-2xl font-bold mb-2">Review Your Design</h2>
-              <p className="text-gray-600">Review your custom salwar kameez design and add to cart</p>
+              <p className="text-gray-600">Review your custom lehenga design and add to cart</p>
             </div>
 
             <div className="max-w-4xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -1038,7 +1047,7 @@ export default function CustomSalwarKameezDesignPage() {
                       <div>
                         <p className="text-sm font-medium text-gray-600">Model Name</p>
                         <p className="font-medium">{design.selectedModel.name}</p>
-                        <p className="text-sm text-purple-600">{design.selectedModel.designName}</p>
+                        <p className="text-sm text-orange-600">{design.selectedModel.designName}</p>
                       </div>
                     )}
 
@@ -1127,15 +1136,26 @@ export default function CustomSalwarKameezDesignPage() {
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        <div>Bust: <span className="font-medium">{design.measurements.bust}"</span></div>
-                        <div>Waist: <span className="font-medium">{design.measurements.waist}"</span></div>
-                        <div>Hips: <span className="font-medium">{design.measurements.hips}"</span></div>
-                        <div>Shoulder: <span className="font-medium">{design.measurements.shoulder}"</span></div>
-                        <div>Kameez Length: <span className="font-medium">{design.measurements.kameezLength}"</span></div>
-                        <div>Sleeve Length: <span className="font-medium">{design.measurements.sleeveLength}"</span></div>
-                        <div className="col-span-2">Salwar Length: <span className="font-medium">{design.measurements.salwarLength}"</span></div>
+                      <div className="space-y-2">
+                        <h4 className="font-medium text-orange-800">Blouse Measurements</h4>
+                        <div className="grid grid-cols-2 gap-2 text-sm">
+                          <div>Chest: <span className="font-medium">{design.measurements.chest}"</span></div>
+                          <div>Waist: <span className="font-medium">{design.measurements.waist}"</span></div>
+                          <div>Shoulder: <span className="font-medium">{design.measurements.shoulder}"</span></div>
+                          <div>Sleeve Length: <span className="font-medium">{design.measurements.sleeveLength}"</span></div>
+                          <div className="col-span-2">Blouse Length: <span className="font-medium">{design.measurements.blouseLength}"</span></div>
+                        </div>
                       </div>
+                      
+                      <div className="space-y-2">
+                        <h4 className="font-medium text-orange-800">Lehenga Measurements</h4>
+                        <div className="grid grid-cols-2 gap-2 text-sm">
+                          <div>Waist: <span className="font-medium">{design.measurements.lehengaWaist}"</span></div>
+                          <div>Hip: <span className="font-medium">{design.measurements.lehengaHip}"</span></div>
+                          <div className="col-span-2">Length: <span className="font-medium">{design.measurements.lehengaLength}"</span></div>
+                        </div>
+                      </div>
+                      
                       {design.measurements.notes && (
                         <div className="mt-2">
                           <p className="text-sm font-medium text-gray-600">Notes:</p>
@@ -1158,8 +1178,8 @@ export default function CustomSalwarKameezDesignPage() {
                   <div className="space-y-2">
                     {!design.fabric?.isOwnFabric && design.fabric && (
                       <div className="flex justify-between">
-                        <span>Fabric Price (3 meters):</span>
-                        <span>₹{(design.fabric.pricePerMeter * 3).toLocaleString()}</span>
+                        <span>Fabric Price (4 meters):</span>
+                        <span>₹{(design.fabric.pricePerMeter * 4).toLocaleString()}</span>
                       </div>
                     )}
 
@@ -1173,17 +1193,17 @@ export default function CustomSalwarKameezDesignPage() {
                     {design.fabric?.isOwnFabric && (
                       <div className="flex justify-between text-green-600">
                         <span>Fabric Savings:</span>
-                        <span>-₹{((design.fabric.pricePerMeter || 0) * 3).toLocaleString()}</span>
+                        <span>-₹{((design.fabric.pricePerMeter || 0) * 4).toLocaleString()}</span>
                       </div>
                     )}
                     <Separator />
                     <div className="flex justify-between font-semibold text-lg">
                       <span>Total Price:</span>
-                      <span className="text-purple-600">{formatPrice(calculatePrice())}</span>
+                      <span className="text-orange-600">{formatPrice(calculatePrice())}</span>
                     </div>
                     {design.fabric?.isOwnFabric && (
                       <p className="text-sm text-green-600 mt-2">
-                        💰 You saved ₹{((design.fabric.pricePerMeter || 0) * 3).toLocaleString()} by providing your own fabric!
+                        💰 You saved ₹{((design.fabric.pricePerMeter || 0) * 4).toLocaleString()} by providing your own fabric!
                       </p>
                     )}
                   </div>
@@ -1194,7 +1214,7 @@ export default function CustomSalwarKameezDesignPage() {
             <div className="flex justify-center">
               <Button 
                 onClick={handleAddToCart}
-                className="bg-purple-600 hover:bg-purple-700 px-8"
+                className="bg-orange-600 hover:bg-orange-700 px-8"
                 disabled={isProcessing}
               >
                 {isProcessing ? (

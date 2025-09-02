@@ -9,6 +9,8 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Progress } from "@/components/ui/progress"
 import { Separator } from "@/components/ui/separator"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { 
   ArrowLeft, 
   ArrowRight, 
@@ -23,7 +25,12 @@ import {
   Loader2,
   X,
   Image as ImageIcon,
-  Tag
+  Tag,
+  Search,
+  SortAsc,
+  SortDesc,
+  ZoomIn,
+  Eye
 } from "lucide-react"
 import { useCart } from "@/contexts/CartContext"
 import { useToast } from "@/hooks/use-toast"
@@ -162,6 +169,12 @@ export default function CustomBlouseDesignPage() {
   const [showCollectionCard, setShowCollectionCard] = useState(true)
   const [manualMeasurementsEnabled, setManualMeasurementsEnabled] = useState(true)
   const [isLoadingConfig, setIsLoadingConfig] = useState(false)
+  const [searchTerm, setSearchTerm] = useState("")
+  const [sortBy, setSortBy] = useState("name")
+  const [sortOrder, setSortOrder] = useState("asc")
+  const [selectedModelForPreview, setSelectedModelForPreview] = useState<BlouseModel | null>(null)
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false)
+  const [priceRange, setPriceRange] = useState({ min: "", max: "" })
   
   const { addItem } = useCart()
   const { toast } = useToast()
@@ -256,7 +269,7 @@ export default function CustomBlouseDesignPage() {
     setIsLoading(true)
     setError(null)
     try {
-      const response = await fetch("/api/blouse-models?includeDesigns=true&page=1&limit=12")
+      const response = await fetch("/api/blouse-models?includeDesigns=true&page=1&limit=100")
       if (response.ok) {
         const data = await response.json()
         setModels(data.models)
@@ -307,7 +320,28 @@ export default function CustomBlouseDesignPage() {
     return `₹${price.toLocaleString()}`
   }
 
-  const handleModelSelect = (model: BlouseModel, designType: "front" | "back") => {
+  const handleModelSelect = (model: BlouseModel, designType?: "front" | "back") => {
+    // If no design type specified, select as main model
+    if (!designType) {
+      setDesign(prev => ({
+        ...prev,
+        selectedModels: {
+          frontModel: model,
+          backModel: null
+        },
+        frontDesign: model.frontDesign,
+        backDesign: model.backDesign
+      }))
+      
+      toast({
+        title: "Model Selected",
+        description: `${model.name} selected for your custom blouse`
+      })
+      
+      setIsPreviewOpen(false)
+      return
+    }
+
     setDesign(prev => ({
       ...prev,
       selectedModels: {
@@ -365,6 +399,39 @@ export default function CustomBlouseDesignPage() {
     return design.appointmentType && design.appointmentDate
   }
 
+  const filteredAndSortedModels = () => {
+    let filtered = models.filter(model => {
+      // Text search filter
+      const matchesSearch = model.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        model.designName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        model.description?.toLowerCase().includes(searchTerm.toLowerCase())
+      
+      // Price range filter
+      const minPrice = priceRange.min ? parseFloat(priceRange.min) : 0
+      const maxPrice = priceRange.max ? parseFloat(priceRange.max) : Infinity
+      const matchesPrice = model.finalPrice >= minPrice && model.finalPrice <= maxPrice
+      
+      return matchesSearch && matchesPrice
+    })
+
+    return filtered.sort((a, b) => {
+      if (sortBy === "price") {
+        const aPrice = a.finalPrice
+        const bPrice = b.finalPrice
+        return sortOrder === "asc" ? aPrice - bPrice : bPrice - aPrice
+      } else {
+        const aName = a.name.toLowerCase()
+        const bName = b.name.toLowerCase()
+        return sortOrder === "asc" ? aName.localeCompare(bName) : bName.localeCompare(aName)
+      }
+    })
+  }
+
+  const handleModelPreview = (model: BlouseModel) => {
+    setSelectedModelForPreview(model)
+    setIsPreviewOpen(true)
+  }
+
   const handleAddToCart = async () => {
     if (!design.fabric) {
       toast({
@@ -403,7 +470,10 @@ export default function CustomBlouseDesignPage() {
         quantity: 1,
         image: design.fabric.image || "/api/placeholder/200/200",
         sku: `CUSTOM-${Date.now()}`,
-        customDesign: design
+        customDesign: {
+          ...design,
+          appointmentPurpose: "blouse" // Automatically set purpose for blouse appointments
+        }
       }
 
       addItem(customOrder)
@@ -726,14 +796,85 @@ export default function CustomBlouseDesignPage() {
           </div>
         )}
 
-        {/* Design Selection Step - Truncated for brevity, same logic as original */}
+        {/* Design Selection Step - Enhanced Gallery View */}
         {currentStep === "design" && (
           <div className="space-y-8">
             <div className="text-center mb-8">
-              <h2 className="text-2xl font-bold mb-2">Select Your Models</h2>
-              <p className="text-gray-600">Choose front and back models for your custom blouse</p>
+              <h2 className="text-2xl font-bold mb-2">Browse Blouse Models</h2>
+              <p className="text-gray-600">Explore our collection and select your perfect design</p>
             </div>
 
+            {/* Search, Filter and Sort Controls */}
+            <div className="max-w-6xl mx-auto">
+              <div className="space-y-4 mb-6">
+                {/* Search Bar */}
+                <div className="flex-1 relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    placeholder="Search models by name or design..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                
+                {/* Filters and Sort */}
+                <div className="flex flex-col sm:flex-row gap-4">
+                  {/* Price Range Filter */}
+                  <div className="flex items-center gap-2">
+                    <Label className="text-sm font-medium whitespace-nowrap">Price Range:</Label>
+                    <Input
+                      type="number"
+                      placeholder="Min"
+                      value={priceRange.min}
+                      onChange={(e) => setPriceRange(prev => ({ ...prev, min: e.target.value }))}
+                      className="w-20"
+                    />
+                    <span className="text-gray-500">-</span>
+                    <Input
+                      type="number"
+                      placeholder="Max"
+                      value={priceRange.max}
+                      onChange={(e) => setPriceRange(prev => ({ ...prev, max: e.target.value }))}
+                      className="w-20"
+                    />
+                    {(priceRange.min || priceRange.max) && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setPriceRange({ min: "", max: "" })}
+                        className="text-xs"
+                      >
+                        Clear
+                      </Button>
+                    )}
+                  </div>
+                  
+                  {/* Sort Controls */}
+                  <div className="flex gap-2 ml-auto">
+                    <Select value={sortBy} onValueChange={setSortBy}>
+                      <SelectTrigger className="w-32">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="name">Name</SelectItem>
+                        <SelectItem value="price">Price</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
+                      title={`Sort ${sortOrder === "asc" ? "Descending" : "Ascending"}`}
+                    >
+                      {sortOrder === "asc" ? <SortAsc className="h-4 w-4" /> : <SortDesc className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Models Gallery */}
             <div className="space-y-6">
               {models.length === 0 ? (
                 <div className="text-center py-12">
@@ -742,144 +883,85 @@ export default function CustomBlouseDesignPage() {
                   <p className="text-gray-600">Please check back later for available models.</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {models.map((model) => {
-                    const isSelectedAsFront = design.selectedModels.frontModel?.id === model.id
-                    const isSelectedAsBack = design.selectedModels.backModel?.id === model.id
-                    const canSelectFront = !design.selectedModels.frontModel && model.frontDesign
-                    const canSelectBack = !design.selectedModels.backModel && model.backDesign
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  {filteredAndSortedModels().map((model) => {
+                    const isSelected = design.selectedModels.frontModel?.id === model.id
 
                     return (
-                      <Card key={model.id} className="overflow-hidden hover:shadow-lg transition-shadow duration-200">
-                        <CardHeader className="pb-3">
-                          <div className="relative">
-                            {model.image ? (
-                              <div className="w-full h-48 bg-gray-100 rounded-lg overflow-hidden">
-                                <img
-                                  src={model.image}
-                                  alt={model.name}
-                                  className="w-full h-full object-cover"
-                                />
-                              </div>
-                            ) : (
-                              <div className="w-full h-48 bg-gradient-to-br from-pink-100 to-purple-100 rounded-lg flex items-center justify-center">
-                                <ImageIcon className="h-12 w-12 text-pink-400" />
-                              </div>
-                            )}
-                            
-                            <div className="absolute top-2 right-2 flex flex-col gap-1">
-                              {isSelectedAsFront && (
-                                <Badge className="bg-green-500 text-white">
-                                  Front Selected
-                                </Badge>
-                              )}
-                              {isSelectedAsBack && (
-                                <Badge className="bg-blue-500 text-white">
-                                  Back Selected
-                                </Badge>
-                              )}
+                      <Card 
+                        key={model.id} 
+                        className={`overflow-hidden hover:shadow-lg transition-all duration-200 cursor-pointer group ${
+                          isSelected ? "ring-2 ring-pink-500 shadow-lg" : ""
+                        }`}
+                        onClick={() => handleModelPreview(model)}
+                      >
+                        <div className="relative">
+                          {model.image ? (
+                            <div className="w-full h-56 bg-gray-100 overflow-hidden">
+                              <img
+                                src={model.image}
+                                alt={model.name}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                              />
                             </div>
+                          ) : (
+                            <div className="w-full h-56 bg-gradient-to-br from-pink-100 to-purple-100 flex items-center justify-center">
+                              <ImageIcon className="h-16 w-16 text-pink-400" />
+                            </div>
+                          )}
+                          
+                          {/* Overlay with preview button */}
+                          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 flex items-center justify-center">
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              className="opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                            >
+                              <Eye className="h-4 w-4 mr-2" />
+                              View Details
+                            </Button>
+                          </div>
 
+                          {/* Badges */}
+                          <div className="absolute top-2 right-2 flex flex-col gap-1">
+                            {isSelected && (
+                              <Badge className="bg-pink-500 text-white">
+                                Selected
+                              </Badge>
+                            )}
                             {model.discount && (
-                              <Badge className="absolute top-2 left-2 bg-red-500 text-white">
+                              <Badge className="bg-red-500 text-white">
                                 {model.discount}% OFF
                               </Badge>
                             )}
                           </div>
-                        </CardHeader>
+                        </div>
 
-                        <CardContent className="space-y-3">
-                          <div>
-                            <CardTitle className="text-lg mb-1">{model.name}</CardTitle>
-                            {model.description && (
-                              <p className="text-sm text-gray-600 line-clamp-2">{model.description}</p>
-                            )}
-                          </div>
-
+                        <CardContent className="p-4">
                           <div className="space-y-2">
-                            {model.frontDesign && (
-                              <div className="flex items-center gap-2 text-sm">
-                                <Tag className="h-3 w-3 text-green-600" />
-                                <span className="text-green-600 font-medium">Front:</span>
-                                <span className="text-gray-600">{model.frontDesign.name}</span>
-                              </div>
+                            <h3 className="font-semibold text-lg leading-tight">{model.name}</h3>
+                            {model.designName && (
+                              <p className="text-sm text-gray-600">{model.designName}</p>
                             )}
-                            {model.backDesign && (
-                              <div className="flex items-center gap-2 text-sm">
-                                <Tag className="h-3 w-3 text-blue-600" />
-                                <span className="text-blue-600 font-medium">Back:</span>
-                                <span className="text-gray-600">{model.backDesign.name}</span>
-                              </div>
-                            )}
-                          </div>
-
-                          <div className="flex items-center justify-between">
-                            <div>
-                              {model.discount ? (
-                                <div className="flex items-center gap-2">
+                            
+                            <div className="flex items-center justify-between">
+                              <div>
+                                {model.discount ? (
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-lg font-bold text-pink-600">
+                                      {formatPrice(model.finalPrice)}
+                                    </span>
+                                    <span className="text-sm text-gray-500 line-through">
+                                      {formatPrice(model.price)}
+                                    </span>
+                                  </div>
+                                ) : (
                                   <span className="text-lg font-bold text-pink-600">
                                     {formatPrice(model.finalPrice)}
                                   </span>
-                                  <span className="text-sm text-gray-500 line-through">
-                                    {formatPrice(model.price)}
-                                  </span>
-                                </div>
-                              ) : (
-                                <span className="text-lg font-bold text-pink-600">
-                                  {formatPrice(model.finalPrice)}
-                                </span>
-                              )}
+                                )}
+                              </div>
                             </div>
-                          </div>
-
-                          <div className="space-y-2">
-                            {canSelectFront && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="w-full border-green-500 text-green-600 hover:bg-green-50"
-                                onClick={() => handleModelSelect(model, "front")}
-                              >
-                                <CheckCircle className="h-4 w-4 mr-2" />
-                                Select as Front Design
-                              </Button>
-                            )}
-                            
-                            {canSelectBack && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="w-full border-blue-500 text-blue-600 hover:bg-blue-50"
-                                onClick={() => handleModelSelect(model, "back")}
-                              >
-                                <CheckCircle className="h-4 w-4 mr-2" />
-                                Select as Back Design
-                              </Button>
-                            )}
-
-                            {isSelectedAsFront && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="w-full border-gray-500 text-gray-600 hover:bg-gray-50"
-                                onClick={() => handleModelDeselect("front")}
-                              >
-                                <X className="h-4 w-4 mr-2" />
-                                Remove Front Selection
-                              </Button>
-                            )}
-
-                            {isSelectedAsBack && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="w-full border-gray-500 text-gray-600 hover:bg-gray-50"
-                                onClick={() => handleModelDeselect("back")}
-                              >
-                                <X className="h-4 w-4 mr-2" />
-                                Remove Back Selection
-                              </Button>
-                            )}
                           </div>
                         </CardContent>
                       </Card>
@@ -887,28 +969,166 @@ export default function CustomBlouseDesignPage() {
                   })}
                 </div>
               )}
+
+              {filteredAndSortedModels().length === 0 && (searchTerm || priceRange.min || priceRange.max) && (
+                <div className="text-center py-12">
+                  <Search className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No models found</h3>
+                  <p className="text-gray-600">Try adjusting your search terms or price range.</p>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => {
+                      setSearchTerm("")
+                      setPriceRange({ min: "", max: "" })
+                    }} 
+                    className="mt-4"
+                  >
+                    Clear All Filters
+                  </Button>
+                </div>
+              )}
             </div>
 
+            {/* Continue Button */}
             <div className="flex justify-center">
               <Button 
                 onClick={() => {
-                  if (!design.selectedModels.frontModel && !design.selectedModels.backModel) {
+                  if (!design.selectedModels.frontModel) {
                     toast({
                       title: "Selection Required",
-                      description: "Please select at least one model to continue",
+                      description: "Please select a model to continue",
                       variant: "destructive"
                     })
                     return
                   }
                   setCurrentStep("measurements")
                 }}
-                className="bg-pink-600 hover:bg-pink-700"
-                disabled={!design.selectedModels.frontModel && !design.selectedModels.backModel}
+                className="bg-pink-600 hover:bg-pink-700 px-8"
+                disabled={!design.selectedModels.frontModel}
               >
                 Continue to Measurements
                 <ArrowRight className="h-4 w-4 ml-2" />
               </Button>
             </div>
+
+            {/* Model Preview Modal */}
+            <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
+              <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                {selectedModelForPreview && (
+                  <>
+                    <DialogHeader>
+                      <DialogTitle className="text-2xl">{selectedModelForPreview.name}</DialogTitle>
+                    </DialogHeader>
+                    
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      {/* Image Section */}
+                      <div className="space-y-4">
+                        {selectedModelForPreview.image ? (
+                          <div className="w-full h-96 bg-gray-100 rounded-lg overflow-hidden">
+                            <img
+                              src={selectedModelForPreview.image}
+                              alt={selectedModelForPreview.name}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        ) : (
+                          <div className="w-full h-96 bg-gradient-to-br from-pink-100 to-purple-100 rounded-lg flex items-center justify-center">
+                            <ImageIcon className="h-24 w-24 text-pink-400" />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Details Section */}
+                      <div className="space-y-6">
+                        <div>
+                          <h3 className="text-xl font-semibold mb-2">{selectedModelForPreview.designName}</h3>
+                          {selectedModelForPreview.description && (
+                            <p className="text-gray-600 leading-relaxed">{selectedModelForPreview.description}</p>
+                          )}
+                        </div>
+
+                        {/* Price */}
+                        <div className="p-4 bg-gray-50 rounded-lg">
+                          <div className="flex items-center justify-between">
+                            <span className="text-lg font-medium">Price:</span>
+                            <div>
+                              {selectedModelForPreview.discount ? (
+                                <div className="text-right">
+                                  <div className="text-2xl font-bold text-pink-600">
+                                    {formatPrice(selectedModelForPreview.finalPrice)}
+                                  </div>
+                                  <div className="text-sm text-gray-500 line-through">
+                                    {formatPrice(selectedModelForPreview.price)}
+                                  </div>
+                                  <Badge className="bg-red-500 text-white mt-1">
+                                    {selectedModelForPreview.discount}% OFF
+                                  </Badge>
+                                </div>
+                              ) : (
+                                <div className="text-2xl font-bold text-pink-600">
+                                  {formatPrice(selectedModelForPreview.finalPrice)}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Design Details */}
+                        {(selectedModelForPreview.frontDesign || selectedModelForPreview.backDesign) && (
+                          <div className="space-y-3">
+                            <h4 className="font-medium">Design Details:</h4>
+                            {selectedModelForPreview.frontDesign && (
+                              <div className="flex items-center gap-2 text-sm p-2 bg-green-50 rounded">
+                                <Tag className="h-4 w-4 text-green-600" />
+                                <span className="text-green-600 font-medium">Front Design:</span>
+                                <span className="text-gray-700">{selectedModelForPreview.frontDesign.name}</span>
+                              </div>
+                            )}
+                            {selectedModelForPreview.backDesign && (
+                              <div className="flex items-center gap-2 text-sm p-2 bg-blue-50 rounded">
+                                <Tag className="h-4 w-4 text-blue-600" />
+                                <span className="text-blue-600 font-medium">Back Design:</span>
+                                <span className="text-gray-700">{selectedModelForPreview.backDesign.name}</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Selection Button */}
+                        <div className="pt-4">
+                          {design.selectedModels.frontModel?.id === selectedModelForPreview.id ? (
+                            <div className="space-y-3">
+                              <div className="flex items-center gap-2 p-3 bg-pink-50 rounded-lg border border-pink-200">
+                                <CheckCircle className="h-5 w-5 text-pink-600" />
+                                <span className="text-pink-800 font-medium">This model is selected</span>
+                              </div>
+                              <Button
+                                variant="outline"
+                                onClick={() => {
+                                  handleModelDeselect("front")
+                                  setIsPreviewOpen(false)
+                                }}
+                                className="w-full"
+                              >
+                                Remove Selection
+                              </Button>
+                            </div>
+                          ) : (
+                            <Button
+                              onClick={() => handleModelSelect(selectedModelForPreview)}
+                              className="w-full bg-pink-600 hover:bg-pink-700"
+                            >
+                              <CheckCircle className="h-4 w-4 mr-2" />
+                              Select This Design
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </DialogContent>
+            </Dialog>
           </div>
         )}
 
@@ -1212,23 +1432,27 @@ export default function CustomBlouseDesignPage() {
                       </div>
                     </div>
 
-                    {/* Selected Models */}
+                    {/* Selected Model */}
                     <div>
-                      <h4 className="font-medium mb-2">Selected Models</h4>
+                      <h4 className="font-medium mb-2">Selected Model</h4>
                       <div className="space-y-2">
                         {design.selectedModels.frontModel && (
-                          <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
-                            <div>
-                              <p className="font-medium text-green-800">Front: {design.selectedModels.frontModel.name}</p>
-                              <p className="text-sm text-green-600">{formatPrice(design.selectedModels.frontModel.finalPrice)}</p>
+                          <div className="flex items-center space-x-3 p-3 bg-pink-50 rounded-lg">
+                            <div className="w-12 h-12 bg-gray-200 rounded flex items-center justify-center flex-shrink-0">
+                              {design.selectedModels.frontModel.image ? (
+                                <img 
+                                  src={design.selectedModels.frontModel.image} 
+                                  alt={design.selectedModels.frontModel.name}
+                                  className="w-full h-full object-cover rounded"
+                                />
+                              ) : (
+                                <ImageIcon className="h-6 w-6 text-gray-400" />
+                              )}
                             </div>
-                          </div>
-                        )}
-                        {design.selectedModels.backModel && (
-                          <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
-                            <div>
-                              <p className="font-medium text-blue-800">Back: {design.selectedModels.backModel.name}</p>
-                              <p className="text-sm text-blue-600">{formatPrice(design.selectedModels.backModel.finalPrice)}</p>
+                            <div className="flex-1">
+                              <p className="font-medium text-pink-800">{design.selectedModels.frontModel.name}</p>
+                              <p className="text-sm text-pink-600">{design.selectedModels.frontModel.designName}</p>
+                              <p className="text-sm text-pink-600">{formatPrice(design.selectedModels.frontModel.finalPrice)}</p>
                             </div>
                           </div>
                         )}
@@ -1260,14 +1484,8 @@ export default function CustomBlouseDesignPage() {
                         )}
                         {design.selectedModels.frontModel && (
                           <div className="flex justify-between">
-                            <span>Front Model</span>
+                            <span>Selected Model</span>
                             <span>₹{design.selectedModels.frontModel.finalPrice.toLocaleString()}</span>
-                          </div>
-                        )}
-                        {design.selectedModels.backModel && (
-                          <div className="flex justify-between">
-                            <span>Back Model</span>
-                            <span>₹{design.selectedModels.backModel.finalPrice.toLocaleString()}</span>
                           </div>
                         )}
                         <Separator />

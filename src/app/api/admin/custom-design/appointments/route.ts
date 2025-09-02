@@ -40,6 +40,7 @@ export async function GET(request: NextRequest) {
       userPhone: order.user.phone || 'Not provided',
       appointmentDate: order.appointmentDate,
       appointmentType: order.appointmentType,
+      appointmentPurpose: order.appointmentPurpose,
       status: order.status,
       notes: order.notes,
       measurementDetails: order.measurementDetails,
@@ -61,7 +62,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { userId, appointmentDate, appointmentType, notes } = body
+    const { userId, appointmentDate, appointmentType, appointmentPurpose, notes } = body
 
     if (!userId || !appointmentDate || !appointmentType) {
       return NextResponse.json(
@@ -76,6 +77,7 @@ export async function POST(request: NextRequest) {
         userId,
         appointmentDate: new Date(appointmentDate),
         appointmentType,
+        appointmentPurpose,
         notes,
         status: 'PENDING',
         fabric: '',
@@ -105,6 +107,7 @@ export async function POST(request: NextRequest) {
       userPhone: customOrder.user.phone || 'Not provided',
       appointmentDate: customOrder.appointmentDate,
       appointmentType: customOrder.appointmentType,
+      appointmentPurpose: customOrder.appointmentPurpose,
       status: customOrder.status,
       notes: customOrder.notes,
       measurementDetails: customOrder.measurementDetails,

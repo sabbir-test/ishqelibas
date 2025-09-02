@@ -1,140 +1,94 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
-import { BlouseModel } from "@prisma/client"
-import { verifyToken } from "@/lib/auth"
 
 export async function GET(request: NextRequest) {
   try {
-    // Temporary bypass authentication for testing
-    // In production, you should uncomment the authentication code
-    // const token = request.cookies.get("auth-token")?.value
-    
-    // if (!token) {
-    //   return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    // }
+    // Get token from cookie and verify authentication
+    const token = request.cookies.get("auth-token")?.value
+    if (!token) {
+      return NextResponse.json({ error: "Authentication required" }, { status: 401 })
+    }
 
-    // const payload = verifyToken(token)
-    
-    // if (!payload || payload.role !== "ADMIN") {
-    //   return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    // }
+    // Verify token and get authenticated user
+    const { verifyToken } = await import("@/lib/auth")
+    const payload = verifyToken(token)
+    if (!payload) {
+      return NextResponse.json({ error: "Invalid authentication" }, { status: 401 })
+    }
 
-    const { searchParams } = new URL(request.url)
-    const includeDesigns = searchParams.get("includeDesigns") === "true"
+    // Get authenticated user from database
+    const authenticatedUser = await db.user.findUnique({
+      where: { id: payload.userId },
+      select: { id: true, isActive: true, role: true }
+    })
+
+    if (!authenticatedUser || !authenticatedUser.isActive || authenticatedUser.role !== 'ADMIN') {
+      return NextResponse.json({ error: "Admin access required" }, { status: 403 })
+    }
 
     const models = await db.blouseModel.findMany({
-      include: includeDesigns ? {
-        frontDesign: {
-          include: {
-            category: true
-          }
-        },
-        backDesign: {
-          include: {
-            category: true
-          }
-        }
-      } : undefined,
-      orderBy: {
-        createdAt: "desc"
-      }
+      orderBy: { createdAt: "desc" }
     })
 
     return NextResponse.json({ models })
   } catch (error) {
     console.error("Error fetching blouse models:", error)
-    return NextResponse.json(
-      { error: "Failed to fetch blouse models" },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: "Failed to fetch blouse models" }, { status: 500 })
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    // Temporary bypass authentication for testing
-    // In production, you should uncomment the authentication code
-    // const token = request.cookies.get("auth-token")?.value
-    
-    // if (!token) {
-    //   return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    // }
-
-    // const payload = verifyToken(token)
-    
-    // if (!payload || payload.role !== "ADMIN") {
-    //   return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    // }
-
-    const body = await request.json()
-    const { name, frontDesignId, backDesignId, image, description, price, discount, isActive = true } = body
-
-    if (!name || !price) {
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 }
-      )
+    // Get token from cookie and verify authentication
+    const token = request.cookies.get("auth-token")?.value
+    if (!token) {
+      return NextResponse.json({ error: "Authentication required" }, { status: 401 })
     }
 
-    // Verify that the designs exist if provided
-    if (frontDesignId) {
-      const frontDesign = await db.blouseDesign.findUnique({
-        where: { id: frontDesignId }
-      })
-      if (!frontDesign) {
-        return NextResponse.json(
-          { error: "Front design not found" },
-          { status: 404 }
-        )
-      }
+    // Verify token and get authenticated user
+    const { verifyToken } = await import("@/lib/auth")
+    const payload = verifyToken(token)
+    if (!payload) {
+      return NextResponse.json({ error: "Invalid authentication" }, { status: 401 })
     }
 
-    if (backDesignId) {
-      const backDesign = await db.blouseDesign.findUnique({
-        where: { id: backDesignId }
-      })
-      if (!backDesign) {
-        return NextResponse.json(
-          { error: "Back design not found" },
-          { status: 404 }
-        )
-      }
+    // Get authenticated user from database
+    const authenticatedUser = await db.user.findUnique({
+      where: { id: payload.userId },
+      select: { id: true, isActive: true, role: true }
+    })
+
+    if (!authenticatedUser || !authenticatedUser.isActive || authenticatedUser.role !== 'ADMIN') {
+      return NextResponse.json({ error: "Admin access required" }, { status: 403 })
     }
 
+    const { name, designName, description, price, discount, stitchCost, image, isActive } = await request.json()
+
+    // Validate required fields
+    if (!name || !designName || !price || stitchCost === undefined) {
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
+    }
+
+    // Calculate final price
     const finalPrice = discount ? price - (price * discount / 100) : price
 
     const model = await db.blouseModel.create({
       data: {
         name,
-        frontDesignId,
-        backDesignId,
-        image,
+        designName,
         description,
-        price,
-        discount,
+        price: parseFloat(price),
+        discount: discount ? parseFloat(discount) : null,
         finalPrice,
-        isActive
-      },
-      include: {
-        frontDesign: {
-          include: {
-            category: true
-          }
-        },
-        backDesign: {
-          include: {
-            category: true
-          }
-        }
+        stitchCost: parseFloat(stitchCost),
+        image,
+        isActive: isActive !== undefined ? isActive : true
       }
     })
 
-    return NextResponse.json({ model }, { status: 201 })
+    return NextResponse.json({ model })
   } catch (error) {
     console.error("Error creating blouse model:", error)
-    return NextResponse.json(
-      { error: "Failed to create blouse model" },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: "Failed to create blouse model" }, { status: 500 })
   }
 }

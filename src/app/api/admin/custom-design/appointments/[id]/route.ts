@@ -7,7 +7,7 @@ export async function PATCH(
 ) {
   try {
     const body = await request.json()
-    const { status, notes } = body
+    const { status, notes, appointmentPurpose } = body
 
     // Update the custom order (which represents the appointment)
     const updatedOrder = await db.customOrder.update({
@@ -15,6 +15,7 @@ export async function PATCH(
       data: {
         ...(status && { status }),
         ...(notes !== undefined && { notes }),
+        ...(appointmentPurpose !== undefined && { appointmentPurpose }),
       },
       include: {
         user: {
@@ -41,6 +42,8 @@ export async function PATCH(
       userEmail: updatedOrder.user.email,
       userPhone: updatedOrder.user.phone || 'Not provided',
       appointmentDate: updatedOrder.appointmentDate,
+      appointmentType: updatedOrder.appointmentType,
+      appointmentPurpose: updatedOrder.appointmentPurpose,
       status: updatedOrder.status,
       notes: updatedOrder.notes,
       detailedMeasurements: updatedOrder.detailedMeasurements,

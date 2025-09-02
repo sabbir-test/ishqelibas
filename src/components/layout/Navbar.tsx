@@ -19,7 +19,8 @@ import {
   Info,
   Phone,
   LogOut,
-  Scissors
+  Scissors,
+  Settings
 } from "lucide-react"
 import Image from "next/image"
 import { useCart } from "@/contexts/CartContext"
@@ -140,6 +141,14 @@ export default function Navbar() {
                         My Account
                       </Button>
                     </Link>
+                    {authState.user.role === "ADMIN" && (
+                      <Link href="/admin">
+                        <Button variant="ghost" className="w-full justify-start">
+                          <Settings className="h-4 w-4 mr-2" />
+                          Admin Dashboard
+                        </Button>
+                      </Link>
+                    )}
                     <Link href="/orders">
                       <Button variant="ghost" className="w-full justify-start">
                         <ShoppingBag className="h-4 w-4 mr-2" />
@@ -233,14 +242,26 @@ export default function Navbar() {
                             {authState.user.email}
                           </div>
                         </div>
-                        <Button variant="outline" className="w-full justify-start">
-                          <User className="h-4 w-4 mr-2" />
-                          My Account
-                        </Button>
-                        <Button variant="outline" className="w-full justify-start">
-                          <ShoppingBag className="h-4 w-4 mr-2" />
-                          My Orders
-                        </Button>
+                        <Link href="/account">
+                          <Button variant="outline" className="w-full justify-start">
+                            <User className="h-4 w-4 mr-2" />
+                            My Account
+                          </Button>
+                        </Link>
+                        {authState.user.role === "ADMIN" && (
+                          <Link href="/admin">
+                            <Button variant="outline" className="w-full justify-start">
+                              <Settings className="h-4 w-4 mr-2" />
+                              Admin Dashboard
+                            </Button>
+                          </Link>
+                        )}
+                        <Link href="/orders">
+                          <Button variant="outline" className="w-full justify-start">
+                            <ShoppingBag className="h-4 w-4 mr-2" />
+                            My Orders
+                          </Button>
+                        </Link>
                         <Button 
                           variant="outline" 
                           className="w-full justify-start text-red-600 hover:text-red-700"

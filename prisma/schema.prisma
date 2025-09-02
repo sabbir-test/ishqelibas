@@ -30,6 +30,7 @@ model User {
   orders             Order[]
   reviews            Review[]
   salwarMeasurements SalwarMeasurement[]
+  lehengaMeasurements LehengaMeasurement[]
   wishlistItems      WishlistItem[]
 
   @@map("users")
@@ -216,12 +217,14 @@ model CustomOrder {
   notes                String?
   appointmentDate      DateTime?
   appointmentType      String?
+  appointmentPurpose   String?
   measurementDetails   String?
   createdAt            DateTime            @default(now())
   updatedAt            DateTime            @updatedAt
   user                 User                @relation(fields: [userId], references: [id])
   detailedMeasurements Measurement[]
   salwarMeasurements   SalwarMeasurement[]
+  lehengaMeasurements  LehengaMeasurement[]
 
   @@map("custom_orders")
 }
@@ -266,67 +269,21 @@ model Fabric {
   @@map("fabrics")
 }
 
-model BlouseDesign {
-  id          String                @id @default(cuid())
-  name        String
-  type        DesignType
-  image       String?
-  description String?
-  stitchCost  Float                 @default(0)
-  isActive    Boolean               @default(true)
-  createdAt   DateTime              @default(now())
-  updatedAt   DateTime              @updatedAt
-  categoryId  String?
-  variants    BlouseDesignVariant[]
-  category    BlouseDesignCategory? @relation(fields: [categoryId], references: [id])
-  backModels  BlouseModel[]         @relation("BackModelDesign")
-  frontModels BlouseModel[]         @relation("FrontModelDesign")
 
-  @@map("blouse_designs")
-}
-
-model BlouseDesignCategory {
-  id          String         @id @default(cuid())
-  name        String         @unique
-  description String?
-  image       String?
-  isActive    Boolean        @default(true)
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
-  designs     BlouseDesign[]
-
-  @@map("blouse_design_categories")
-}
-
-model BlouseDesignVariant {
-  id          String       @id @default(cuid())
-  name        String
-  image       String?
-  description String?
-  isActive    Boolean      @default(true)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  designId    String
-  design      BlouseDesign @relation(fields: [designId], references: [id])
-
-  @@map("blouse_design_variants")
-}
 
 model BlouseModel {
-  id            String        @id @default(cuid())
-  name          String
-  image         String?
-  description   String?
-  price         Float
-  discount      Float?
-  finalPrice    Float
-  isActive      Boolean       @default(true)
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-  frontDesignId String?
-  backDesignId  String?
-  backDesign    BlouseDesign? @relation("BackModelDesign", fields: [backDesignId], references: [id])
-  frontDesign   BlouseDesign? @relation("FrontModelDesign", fields: [frontDesignId], references: [id])
+  id          String   @id @default(cuid())
+  name        String
+  designName  String
+  image       String?
+  description String?
+  price       Float
+  discount    Float?
+  finalPrice  Float
+  stitchCost  Float    @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@map("blouse_models")
 }
@@ -345,6 +302,22 @@ model SalwarKameezModel {
   updatedAt   DateTime @updatedAt
 
   @@map("salwar_kameez_models")
+}
+
+model LehengaModel {
+  id          String   @id @default(cuid())
+  name        String
+  designName  String
+  image       String?
+  description String?
+  price       Float
+  discount    Float?
+  finalPrice  Float
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("lehenga_models")
 }
 
 model SalwarMeasurement {
@@ -382,6 +355,38 @@ model Config {
   updatedBy   String?
 
   @@map("configs")
+}
+
+model LehengaMeasurement {
+  id               String       @id @default(cuid())
+  customOrderId    String?
+  userId           String?
+  // Blouse measurements
+  blouseBackLength Float?
+  fullShoulder     Float?
+  shoulderStrap    Float?
+  backNeckDepth    Float?
+  frontNeckDepth   Float?
+  shoulderToApex   Float?
+  frontLength      Float?
+  chest            Float?
+  waist            Float?
+  sleeveLength     Float?
+  armRound         Float?
+  sleeveRound      Float?
+  armHole          Float?
+  // Lehenga measurements
+  lehengaWaist     Float?
+  lehengaHip       Float?
+  lehengaLength    Float?
+  lehengaWidth     Float?
+  notes            String?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  user             User?        @relation(fields: [userId], references: [id])
+  customOrder      CustomOrder? @relation(fields: [customOrderId], references: [id], onDelete: Cascade)
+
+  @@map("lehenga_measurements")
 }
 
 model ConfigChangeLog {
@@ -432,7 +437,4 @@ enum CustomOrderStatus {
   CANCELLED
 }
 
-enum DesignType {
-  FRONT
-  BACK
-}
+

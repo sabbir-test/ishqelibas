@@ -158,13 +158,9 @@ export default function AdminDashboard() {
                   Fabrics
                 </Button>
               </Link>
-              <Link href="/admin/custom-design/designs">
-                <Button variant="outline">
-                  <Scissors className="h-4 w-4 mr-2" />
-                  Blouse Designs
-                </Button>
-              </Link>
-              <Link href="/admin/custom-design/models">
+
+
+              <Link href="/admin/blouse-models">
                 <Button variant="outline">
                   <User className="h-4 w-4 mr-2" />
                   Blouse Models
@@ -174,6 +170,12 @@ export default function AdminDashboard() {
                 <Button variant="outline">
                   <Package className="h-4 w-4 mr-2" />
                   Salwar Kameez Models
+                </Button>
+              </Link>
+              <Link href="/admin/lehenga-models">
+                <Button variant="outline">
+                  <Scissors className="h-4 w-4 mr-2" />
+                  Lehenga Models
                 </Button>
               </Link>
               <Link href="/admin/custom-design/orders">
@@ -464,12 +466,7 @@ export default function AdminDashboard() {
                         Manage Fabrics
                       </Button>
                     </Link>
-                    <Link href="/admin/custom-design/designs">
-                      <Button className="w-full justify-start" variant="outline">
-                        <Scissors className="h-4 w-4 mr-2" />
-                        Manage Blouse Designs
-                      </Button>
-                    </Link>
+
                     <Link href="/admin/custom-design/appointments">
                       <Button className="w-full justify-start" variant="outline">
                         <Calendar className="h-4 w-4 mr-2" />

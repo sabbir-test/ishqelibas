@@ -66,6 +66,56 @@ export async function GET(
       return NextResponse.json({ error: "Order not found" }, { status: 404 })
     }
 
+    // Fetch custom order details and blouse model information for custom designs
+    const enhancedOrderItems = await Promise.all(
+      order.orderItems.map(async (item) => {
+        let customDesign = null
+        let blouseModel = null
+        
+        // If this is a custom blouse order, fetch the custom design details
+        if (item.productId === 'custom-blouse') {
+          const customOrder = await db.customOrder.findFirst({
+            where: { userId: authenticatedUser.id },
+            orderBy: { createdAt: 'desc' }
+          })
+          
+          if (customOrder) {
+            customDesign = {
+              fabric: customOrder.fabric,
+              fabricColor: customOrder.fabricColor,
+              frontDesign: customOrder.frontDesign,
+              backDesign: customOrder.backDesign,
+              measurements: customOrder.oldMeasurements,
+              appointmentDate: customOrder.appointmentDate,
+              appointmentType: customOrder.appointmentType,
+              notes: customOrder.notes
+            }
+            
+            // Try to find matching blouse model based on design names
+            if (customOrder.frontDesign || customOrder.backDesign) {
+              blouseModel = await db.blouseModel.findFirst({
+                where: {
+                  OR: [
+                    { name: { contains: customOrder.frontDesign } },
+                    { designName: { contains: customOrder.frontDesign } },
+                    { name: { contains: customOrder.backDesign } },
+                    { designName: { contains: customOrder.backDesign } }
+                  ],
+                  isActive: true
+                }
+              })
+            }
+          }
+        }
+        
+        return {
+          ...item,
+          customDesign,
+          blouseModel
+        }
+      })
+    )
+
     // Validate that this is not a dummy/demo order
     const validation = validateOrder(order)
     if (!validation.isValid) {
@@ -73,8 +123,14 @@ export async function GET(
       return NextResponse.json({ error: "Order not found" }, { status: 404 })
     }
 
+    // Return enhanced order with blouse model information
+    const enhancedOrder = {
+      ...order,
+      orderItems: enhancedOrderItems
+    }
+
     // Add cache-busting headers
-    const response = NextResponse.json({ order })
+    const response = NextResponse.json({ order: enhancedOrder })
     response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate')
     response.headers.set('Pragma', 'no-cache')
     response.headers.set('Expires', '0')

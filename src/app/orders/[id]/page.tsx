@@ -21,6 +21,27 @@ import {
 import Link from "next/link"
 import { useAuth } from "@/contexts/AuthContext"
 
+interface BlouseModel {
+  id: string
+  name: string
+  designName: string
+  image?: string
+  description?: string
+  price: number
+  finalPrice: number
+}
+
+interface CustomDesign {
+  fabric: string
+  fabricColor: string
+  frontDesign: string
+  backDesign: string
+  measurements: string
+  appointmentDate?: string
+  appointmentType?: string
+  notes?: string
+}
+
 interface OrderItem {
   id: string
   name: string
@@ -29,6 +50,8 @@ interface OrderItem {
   image: string
   size?: string
   color?: string
+  customDesign?: CustomDesign
+  blouseModel?: BlouseModel
 }
 
 interface Order {
@@ -185,6 +208,31 @@ export default function OrderDetailPage() {
     }
   }
 
+  const getTrackingSteps = () => {
+    const steps = [
+      { key: 'pending', label: 'Order Placed', icon: Clock },
+      { key: 'confirmed', label: 'Confirmed', icon: CheckCircle },
+      { key: 'processing', label: 'Processing', icon: Package },
+      { key: 'shipped', label: 'Shipped', icon: Truck },
+      { key: 'delivered', label: 'Delivered', icon: CheckCircle }
+    ]
+    
+    const currentStatus = order?.status.toLowerCase()
+    const statusOrder = ['pending', 'confirmed', 'processing', 'shipped', 'delivered']
+    const currentIndex = statusOrder.indexOf(currentStatus)
+    
+    return steps.map((step, index) => ({
+      ...step,
+      isCompleted: index <= currentIndex,
+      isCurrent: index === currentIndex,
+      isActive: index <= currentIndex
+    }))
+  }
+
+  const isInvoiceDownloadEnabled = () => {
+    return order?.status.toLowerCase() === 'delivered'
+  }
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-IN', {
       year: 'numeric',
@@ -255,37 +303,71 @@ export default function OrderDetailPage() {
         <div className="grid lg:grid-cols-3 gap-8">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Order Status */}
+            {/* Order Tracking Status */}
             <Card>
               <CardHeader>
-                <CardTitle>Order Status</CardTitle>
+                <CardTitle>Order Tracking</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm text-gray-500">Order Date</p>
-                    <p className="font-medium">{formatDate(order.createdAt)}</p>
+                <div className="space-y-6">
+                  {/* Progress Steps */}
+                  <div className="flex items-center justify-between">
+                    {getTrackingSteps().map((step, index) => {
+                      const IconComponent = step.icon
+                      return (
+                        <div key={step.key} className="flex flex-col items-center flex-1">
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 ${
+                            step.isCompleted 
+                              ? 'bg-green-500 border-green-500 text-white' 
+                              : step.isCurrent
+                              ? 'bg-blue-500 border-blue-500 text-white'
+                              : 'bg-gray-100 border-gray-300 text-gray-400'
+                          }`}>
+                            <IconComponent className="h-5 w-5" />
+                          </div>
+                          <span className={`text-xs mt-2 text-center ${
+                            step.isActive ? 'text-gray-900 font-medium' : 'text-gray-500'
+                          }`}>
+                            {step.label}
+                          </span>
+                          {index < getTrackingSteps().length - 1 && (
+                            <div className={`absolute h-0.5 w-16 mt-5 ml-16 ${
+                              step.isCompleted ? 'bg-green-500' : 'bg-gray-300'
+                            }`} style={{ transform: 'translateX(-50%)' }} />
+                          )}
+                        </div>
+                      )
+                    })}
                   </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Payment Method</p>
-                    <p className="font-medium">{order.paymentMethod}</p>
-                  </div>
-                  {order.estimatedDelivery && (
+                  
+                  {/* Order Details */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
                     <div>
-                      <p className="text-sm text-gray-500">Estimated Delivery</p>
-                      <p className="font-medium">{formatDate(order.estimatedDelivery)}</p>
+                      <p className="text-sm text-gray-500">Order Date</p>
+                      <p className="font-medium">{formatDate(order.createdAt)}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Payment Method</p>
+                      <p className="font-medium">{order.paymentMethod}</p>
+                    </div>
+                    {order.estimatedDelivery && (
+                      <div>
+                        <p className="text-sm text-gray-500">Estimated Delivery</p>
+                        <p className="font-medium">{formatDate(order.estimatedDelivery)}</p>
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-sm text-gray-500">Payment Status</p>
+                      <p className="font-medium">{order.paymentStatus || 'Pending'}</p>
+                    </div>
+                  </div>
+                  
+                  {order.notes && (
+                    <div className="p-3 bg-gray-50 rounded-lg">
+                      <p className="text-sm"><span className="font-medium">Notes:</span> {order.notes}</p>
                     </div>
                   )}
-                  <div>
-                    <p className="text-sm text-gray-500">Payment Status</p>
-                    <p className="font-medium">{order.paymentStatus || 'Pending'}</p>
-                  </div>
                 </div>
-                {order.notes && (
-                  <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-                    <p className="text-sm"><span className="font-medium">Notes:</span> {order.notes}</p>
-                  </div>
-                )}
               </CardContent>
             </Card>
 
@@ -303,25 +385,70 @@ export default function OrderDetailPage() {
                 ) : (
                   <div className="space-y-4">
                     {order.items.map((item) => (
-                      <div key={item.id} className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
-                        <div className="w-20 h-20 bg-gray-200 rounded-lg flex items-center justify-center">
-                          <Package className="h-8 w-8 text-gray-400" />
-                        </div>
-                        <div className="flex-1">
-                          <h4 className="font-medium text-gray-900">{item.name}</h4>
-                          <div className="flex gap-4 text-sm text-gray-500 mt-1">
-                            <span>Qty: {item.quantity}</span>
-                            {item.size && <span>Size: {item.size}</span>}
-                            {item.color && <span>Color: {item.color}</span>}
+                      <div key={item.id} className="p-4 bg-gray-50 rounded-lg">
+                        <div className="flex items-start gap-4">
+                          {/* Item Image */}
+                          <div className="w-20 h-20 bg-gray-200 rounded-lg flex items-center justify-center flex-shrink-0">
+                            {item.blouseModel?.image ? (
+                              <img 
+                                src={item.blouseModel.image} 
+                                alt={item.blouseModel.name}
+                                className="w-full h-full object-cover rounded-lg"
+                              />
+                            ) : item.image && item.image !== '/api/placeholder/300/400' ? (
+                              <img 
+                                src={item.image} 
+                                alt={item.name}
+                                className="w-full h-full object-cover rounded-lg"
+                              />
+                            ) : (
+                              <Package className="h-8 w-8 text-gray-400" />
+                            )}
                           </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-medium text-gray-900">
-                            <IndianRupee className="inline h-3 w-3" />{item.price}
-                          </p>
-                          <p className="text-sm text-gray-500">
-                            Total: <IndianRupee className="inline h-3 w-3" />{item.price * item.quantity}
-                          </p>
+                          
+                          {/* Item Details */}
+                          <div className="flex-1">
+                            <h4 className="font-medium text-gray-900">{item.name}</h4>
+                            
+                            {/* Blouse Model Info */}
+                            {item.blouseModel && (
+                              <div className="mt-2 p-2 bg-pink-50 rounded border border-pink-200">
+                                <p className="text-sm font-medium text-pink-800">{item.blouseModel.name}</p>
+                                <p className="text-xs text-pink-600">{item.blouseModel.designName}</p>
+                              </div>
+                            )}
+                            
+                            {/* Custom Design Info */}
+                            {item.customDesign && (
+                              <div className="mt-2 space-y-1">
+                                <div className="flex gap-4 text-xs text-gray-600">
+                                  <span>Fabric: {item.customDesign.fabric}</span>
+                                  <span>Color: {item.customDesign.fabricColor}</span>
+                                </div>
+                                <div className="flex gap-4 text-xs text-gray-600">
+                                  <span>Front: {item.customDesign.frontDesign}</span>
+                                  <span>Back: {item.customDesign.backDesign}</span>
+                                </div>
+                              </div>
+                            )}
+                            
+                            {/* Standard Item Info */}
+                            <div className="flex gap-4 text-sm text-gray-500 mt-1">
+                              <span>Qty: {item.quantity}</span>
+                              {item.size && <span>Size: {item.size}</span>}
+                              {item.color && <span>Color: {item.color}</span>}
+                            </div>
+                          </div>
+                          
+                          {/* Price */}
+                          <div className="text-right">
+                            <p className="font-medium text-gray-900">
+                              <IndianRupee className="inline h-3 w-3" />{item.price}
+                            </p>
+                            <p className="text-sm text-gray-500">
+                              Total: <IndianRupee className="inline h-3 w-3" />{item.price * item.quantity}
+                            </p>
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -402,22 +529,29 @@ export default function OrderDetailPage() {
               </CardHeader>
               <CardContent className="space-y-3">
                 <Button 
-                  variant="outline" 
-                  className="w-full"
+                  variant={isInvoiceDownloadEnabled() ? "outline" : "outline"}
+                  className={`w-full ${
+                    isInvoiceDownloadEnabled() 
+                      ? "hover:bg-gray-50" 
+                      : "opacity-50 cursor-not-allowed"
+                  }`}
+                  disabled={!isInvoiceDownloadEnabled()}
                   onClick={() => {
-                    // Create a temporary link to download the invoice
-                    const invoiceUrl = `/api/orders/${order.id}/invoice`
-                    const link = document.createElement('a')
-                    link.href = invoiceUrl
-                    link.download = `Invoice-${order.orderNumber}.html`
-                    link.target = '_blank'
-                    document.body.appendChild(link)
-                    link.click()
-                    document.body.removeChild(link)
+                    if (isInvoiceDownloadEnabled()) {
+                      const invoiceUrl = `/api/orders/${order.id}/invoice`
+                      const link = document.createElement('a')
+                      link.href = invoiceUrl
+                      link.download = `Invoice-${order.orderNumber}.html`
+                      link.target = '_blank'
+                      document.body.appendChild(link)
+                      link.click()
+                      document.body.removeChild(link)
+                    }
                   }}
+                  title={!isInvoiceDownloadEnabled() ? "Invoice will be available after delivery" : ""}
                 >
                   <Download className="h-4 w-4 mr-2" />
-                  Download Invoice
+                  {isInvoiceDownloadEnabled() ? "Download Invoice" : "Invoice (Available after delivery)"}
                 </Button>
                 {order.status === 'delivered' && (
                   <Button className="w-full bg-green-600 hover:bg-green-700">

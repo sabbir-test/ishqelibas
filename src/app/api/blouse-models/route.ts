@@ -4,8 +4,6 @@ import { db } from "@/lib/db"
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
-    const includeDesigns = searchParams.get("includeDesigns") === "true"
-    const designType = searchParams.get("designType") // "FRONT", "BACK", or "both"
     const minPrice = searchParams.get("minPrice")
     const maxPrice = searchParams.get("maxPrice")
     const search = searchParams.get("search")
@@ -17,16 +15,6 @@ export async function GET(request: NextRequest) {
     // Build where clause for filtering
     const where: any = {
       isActive: true // Only show active models to clients
-    }
-
-    // Add design type filter
-    if (designType === "FRONT") {
-      where.frontDesignId = { not: null }
-    } else if (designType === "BACK") {
-      where.backDesignId = { not: null }
-    } else if (designType === "both") {
-      where.frontDesignId = { not: null }
-      where.backDesignId = { not: null }
     }
 
     // Add price range filter
@@ -41,6 +29,7 @@ export async function GET(request: NextRequest) {
     if (search) {
       where.OR = [
         { name: { contains: search, mode: "insensitive" } },
+        { designName: { contains: search, mode: "insensitive" } },
         { description: { contains: search, mode: "insensitive" } }
       ]
     }
@@ -61,60 +50,16 @@ export async function GET(request: NextRequest) {
         select: {
           id: true,
           name: true,
+          designName: true,
           image: true,
           description: true,
           price: true,
           discount: true,
           finalPrice: true,
+          stitchCost: true,
           isActive: true,
           createdAt: true,
-          updatedAt: true,
-          frontDesignId: true,
-          backDesignId: true,
-          frontDesign: includeDesigns ? {
-            select: {
-              id: true,
-              name: true,
-              type: true,
-              image: true,
-              description: true,
-              stitchCost: true,
-              categoryId: true,
-              category: {
-                select: {
-                  id: true,
-                  name: true,
-                  description: true,
-                  image: true,
-                  isActive: true,
-                  createdAt: true,
-                  updatedAt: true
-                }
-              }
-            }
-          } : undefined,
-          backDesign: includeDesigns ? {
-            select: {
-              id: true,
-              name: true,
-              type: true,
-              image: true,
-              description: true,
-              stitchCost: true,
-              categoryId: true,
-              category: {
-                select: {
-                  id: true,
-                  name: true,
-                  description: true,
-                  image: true,
-                  isActive: true,
-                  createdAt: true,
-                  updatedAt: true
-                }
-              }
-            }
-          } : undefined
+          updatedAt: true
         },
         orderBy,
         skip,

@@ -1,0 +1,30 @@
+[
+  {
+    "id": "cmeyqu6zx0009lxuo416bofm7",
+    "name": "Classic Model 1",
+    "image": null,
+    "description": "Classic blouse model with round neck",
+    "price": 1999,
+    "discount": null,
+    "finalPrice": 1999,
+    "isActive": true,
+    "createdAt": "2025-08-30T20:58:11.565Z",
+    "updatedAt": "2025-08-30T20:58:11.565Z",
+    "frontDesignId": "cmeyqu6zb0003lxuo4m4jmm89",
+    "backDesignId": null
+  },
+  {
+    "id": "cmeyqu706000blxuodoptpt8e",
+    "name": "Elegant Model 2",
+    "image": null,
+    "description": "Elegant blouse model with V-neck",
+    "price": 2499,
+    "discount": 10,
+    "finalPrice": 2249,
+    "isActive": true,
+    "createdAt": "2025-08-30T20:58:11.574Z",
+    "updatedAt": "2025-08-30T20:58:11.574Z",
+    "frontDesignId": "cmeyqu6zi0005lxuocss6xmpa",
+    "backDesignId": "cmeyqu6zq0007lxuoc64ocnm9"
+  }
+]

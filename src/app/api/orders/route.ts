@@ -6,6 +6,34 @@ export async function POST(request: NextRequest) {
   try {
     console.log('📋 Order creation started...')
     
+    // Get and verify authentication first
+    const token = request.cookies.get("auth-token")?.value
+    if (!token) {
+      console.log('❌ No auth token found')
+      return NextResponse.json({ error: "Authentication required" }, { status: 401 })
+    }
+
+    // Verify token and get authenticated user
+    const { verifyToken } = await import("@/lib/auth")
+    const payload = verifyToken(token)
+    if (!payload) {
+      console.log('❌ Invalid auth token')
+      return NextResponse.json({ error: "Invalid authentication" }, { status: 401 })
+    }
+
+    // Get authenticated user from database
+    const authenticatedUser = await db.user.findUnique({
+      where: { id: payload.userId },
+      select: { id: true, email: true, isActive: true }
+    })
+
+    if (!authenticatedUser || !authenticatedUser.isActive) {
+      console.log('❌ User not found or inactive:', payload.userId)
+      return NextResponse.json({ error: "User not found or inactive" }, { status: 401 })
+    }
+
+    console.log(`👤 Authenticated user: ${authenticatedUser.email} (${authenticatedUser.id})`)
+    
     const {
       userId,
       items,
@@ -19,11 +47,18 @@ export async function POST(request: NextRequest) {
     } = await request.json()
 
     console.log('📊 Order data received:', {
-      userId,
+      requestUserId: userId,
+      authenticatedUserId: authenticatedUser.id,
       itemCount: items?.length,
       total,
       paymentMethod: paymentInfo?.method
     })
+
+    // Ensure the order is being created for the authenticated user
+    if (userId !== authenticatedUser.id) {
+      console.log('❌ User ID mismatch:', { requested: userId, authenticated: authenticatedUser.id })
+      return NextResponse.json({ error: "Unauthorized: User ID mismatch" }, { status: 403 })
+    }
 
     if (!userId || !items || !shippingInfo || !paymentInfo) {
       console.log('❌ Missing required fields:', { userId: !!userId, items: !!items, shippingInfo: !!shippingInfo, paymentInfo: !!paymentInfo })
@@ -102,20 +137,21 @@ export async function POST(request: NextRequest) {
       console.log('📦 Processing item:', { productId: item.productId, name: item.name, quantity: item.quantity, price: item.finalPrice })
       
       // Handle custom design orders
-      if (item.productId === "custom-blouse" && item.customDesign) {
+      if ((item.productId === "custom-blouse" || item.productId === "custom-salwar-kameez" || item.productId === "custom-lehenga") && item.customDesign) {
         // Create custom order record
         const customOrder = await db.customOrder.create({
           data: {
             userId,
             fabric: item.customDesign.fabric?.name || "Custom Fabric",
             fabricColor: item.customDesign.fabric?.color || "#000000",
-            frontDesign: item.customDesign.frontDesign?.name || "Custom Front Design",
-            backDesign: item.customDesign.backDesign?.name || "Custom Back Design",
+            frontDesign: item.customDesign.frontDesign?.name || item.customDesign.selectedModel?.name || "Custom Front Design",
+            backDesign: item.customDesign.backDesign?.name || item.customDesign.selectedModel?.designName || "Custom Back Design",
             oldMeasurements: JSON.stringify(item.customDesign.measurements || {}),
             price: item.finalPrice,
-            notes: item.customDesign.ownFabricDetails?.description || "Custom blouse design",
+            notes: item.customDesign.ownFabricDetails?.description || `Custom ${item.customDesign.appointmentPurpose || 'design'}`,
             appointmentDate: item.customDesign.appointmentDate ? new Date(item.customDesign.appointmentDate) : null,
-            appointmentType: item.customDesign.appointmentType || null
+            appointmentType: item.customDesign.appointmentType || null,
+            appointmentPurpose: item.customDesign.appointmentPurpose || null
           }
         })
 
@@ -141,7 +177,7 @@ export async function POST(request: NextRequest) {
             console.error('❌ Product not found:', item.productId)
             
             // Handle virtual products for custom designs
-            if (item.productId === 'custom-blouse' || item.productId === 'custom-salwar-kameez') {
+            if (item.productId === 'custom-blouse' || item.productId === 'custom-salwar-kameez' || item.productId === 'custom-lehenga') {
               console.log('🔧 Creating missing virtual product:', item.productId)
               
               // Get or create virtual category
@@ -160,16 +196,28 @@ export async function POST(request: NextRequest) {
               }
               
               // Create the virtual product
-              const virtualProductData = item.productId === 'custom-blouse' ? {
-                id: 'custom-blouse',
-                name: 'Custom Blouse Design',
-                description: 'Virtual product for custom blouse designs',
-                sku: 'CUSTOM-BLOUSE-001'
-              } : {
-                id: 'custom-salwar-kameez',
-                name: 'Custom Salwar Kameez Design',
-                description: 'Virtual product for custom salwar kameez designs',
-                sku: 'CUSTOM-SALWAR-001'
+              let virtualProductData
+              if (item.productId === 'custom-blouse') {
+                virtualProductData = {
+                  id: 'custom-blouse',
+                  name: 'Custom Blouse Design',
+                  description: 'Virtual product for custom blouse designs',
+                  sku: 'CUSTOM-BLOUSE-001'
+                }
+              } else if (item.productId === 'custom-salwar-kameez') {
+                virtualProductData = {
+                  id: 'custom-salwar-kameez',
+                  name: 'Custom Salwar Kameez Design',
+                  description: 'Virtual product for custom salwar kameez designs',
+                  sku: 'CUSTOM-SALWAR-001'
+                }
+              } else if (item.productId === 'custom-lehenga') {
+                virtualProductData = {
+                  id: 'custom-lehenga',
+                  name: 'Custom Lehenga Design',
+                  description: 'Virtual product for custom lehenga designs',
+                  sku: 'CUSTOM-LEHENGA-001'
+                }
               }
               
               await db.product.create({
@@ -215,7 +263,7 @@ export async function POST(request: NextRequest) {
         console.log('✅ Order item created successfully:', orderItem.id)
 
         // Update product stock only for regular products (not custom designs)
-        if (item.productId && item.productId !== 'custom-blouse' && item.productId !== 'custom-salwar-kameez') {
+        if (item.productId && item.productId !== 'custom-blouse' && item.productId !== 'custom-salwar-kameez' && item.productId !== 'custom-lehenga') {
           try {
             await db.product.update({
               where: { id: item.productId },

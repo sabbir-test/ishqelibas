@@ -1,0 +1,28 @@
+-- CreateTable
+CREATE TABLE "lehenga_measurements" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "customOrderId" TEXT,
+    "userId" TEXT,
+    "blouseBackLength" REAL,
+    "fullShoulder" REAL,
+    "shoulderStrap" REAL,
+    "backNeckDepth" REAL,
+    "frontNeckDepth" REAL,
+    "shoulderToApex" REAL,
+    "frontLength" REAL,
+    "chest" REAL,
+    "waist" REAL,
+    "sleeveLength" REAL,
+    "armRound" REAL,
+    "sleeveRound" REAL,
+    "armHole" REAL,
+    "lehengaWaist" REAL,
+    "lehengaHip" REAL,
+    "lehengaLength" REAL,
+    "lehengaWidth" REAL,
+    "notes" TEXT,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL,
+    CONSTRAINT "lehenga_measurements_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users" ("id") ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT "lehenga_measurements_customOrderId_fkey" FOREIGN KEY ("customOrderId") REFERENCES "custom_orders" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);

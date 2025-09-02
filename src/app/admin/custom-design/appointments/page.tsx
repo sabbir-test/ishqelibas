@@ -20,6 +20,7 @@ interface Appointment {
   userPhone: string
   appointmentDate: string
   appointmentType?: "VIRTUAL" | "IN_PERSON"
+  appointmentPurpose?: string
   status: 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED'
   notes?: string
   customOrderId: string
@@ -86,6 +87,40 @@ interface SalwarMeasurement {
   updatedAt: string
 }
 
+interface LehengaMeasurement {
+  id: string
+  customOrderId?: string
+  userId?: string
+  user?: {
+    id: string
+    name: string
+    email: string
+    phone: string
+  }
+  // BLOUSE measurements
+  blouseBackLength?: number
+  fullShoulder?: number
+  shoulderStrap?: number
+  backNeckDepth?: number
+  frontNeckDepth?: number
+  shoulderToApex?: number
+  frontLength?: number
+  chest?: number
+  waist?: number
+  sleeveLength?: number
+  armRound?: number
+  sleeveRound?: number
+  armHole?: number
+  // LEHENGA measurements
+  lehengaWaist?: number
+  lehengaHip?: number
+  lehengaLength?: number
+  lehengaWidth?: number
+  notes?: string
+  createdAt: string
+  updatedAt: string
+}
+
 interface User {
   id: string
   name: string
@@ -101,6 +136,7 @@ export default function AdminAppointmentsPage() {
   const [loading, setLoading] = useState(true)
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null)
   const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [purposeFilter, setPurposeFilter] = useState<string>('all')
   const [searchTerm, setSearchTerm] = useState('')
   const [isUpdating, setIsUpdating] = useState(false)
   const [isEditingMeasurements, setIsEditingMeasurements] = useState(false)
@@ -174,6 +210,31 @@ export default function AdminAppointmentsPage() {
   })
   const [editingSalwarMeasurement, setEditingSalwarMeasurement] = useState<SalwarMeasurement | null>(null)
   const [isEditingSalwarMeasurement, setIsEditingSalwarMeasurement] = useState(false)
+  const [allLehengaMeasurements, setAllLehengaMeasurements] = useState<LehengaMeasurement[]>([])
+  const [isAddingLehengaMeasurement, setIsAddingLehengaMeasurement] = useState(false)
+  const [lehengaMeasurementForm, setLehengaMeasurementForm] = useState({
+    userId: '',
+    blouseBackLength: '',
+    fullShoulder: '',
+    shoulderStrap: '',
+    backNeckDepth: '',
+    frontNeckDepth: '',
+    shoulderToApex: '',
+    frontLength: '',
+    chest: '',
+    waist: '',
+    sleeveLength: '',
+    armRound: '',
+    sleeveRound: '',
+    armHole: '',
+    lehengaWaist: '',
+    lehengaHip: '',
+    lehengaLength: '',
+    lehengaWidth: '',
+    notes: ''
+  })
+  const [editingLehengaMeasurement, setEditingLehengaMeasurement] = useState<LehengaMeasurement | null>(null)
+  const [isEditingLehengaMeasurement, setIsEditingLehengaMeasurement] = useState(false)
   const [isEditingTableMeasurement, setIsEditingTableMeasurement] = useState(false)
   const [tableMeasurementForm, setTableMeasurementForm] = useState({
     userId: '',
@@ -199,11 +260,12 @@ export default function AdminAppointmentsPage() {
     fetchUsers()
     fetchAllMeasurements()
     fetchAllSalwarMeasurements()
+    fetchAllLehengaMeasurements()
   }, [])
 
   useEffect(() => {
     filterAppointments()
-  }, [appointments, statusFilter, searchTerm])
+  }, [appointments, statusFilter, purposeFilter, searchTerm])
 
   const fetchAppointments = async () => {
     try {
@@ -226,12 +288,17 @@ export default function AdminAppointmentsPage() {
       filtered = filtered.filter(app => app.status === statusFilter)
     }
 
+    if (purposeFilter !== 'all') {
+      filtered = filtered.filter(app => app.appointmentPurpose === purposeFilter)
+    }
+
     if (searchTerm) {
       filtered = filtered.filter(app => 
         app.userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         app.userEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
         app.userPhone.includes(searchTerm) ||
-        (app.appointmentDate && new Date(app.appointmentDate).toLocaleDateString().includes(searchTerm))
+        (app.appointmentDate && new Date(app.appointmentDate).toLocaleDateString().includes(searchTerm)) ||
+        (app.appointmentPurpose && app.appointmentPurpose.toLowerCase().includes(searchTerm.toLowerCase()))
       )
     }
 
@@ -462,6 +529,10 @@ export default function AdminAppointmentsPage() {
   }
 
   const startAddingStandaloneMeasurement = () => {
+    // Close other forms first
+    setIsAddingSalwarMeasurement(false)
+    setIsAddingLehengaMeasurement(false)
+    
     setStandaloneMeasurementForm({
       userId: '',
       blouseBackLength: '',
@@ -606,6 +677,10 @@ export default function AdminAppointmentsPage() {
   }
 
   const startAddingSalwarMeasurement = () => {
+    // Close other forms first
+    setIsAddingStandaloneMeasurement(false)
+    setIsAddingLehengaMeasurement(false)
+    
     setSalwarMeasurementForm({
       userId: '',
       bust: '',
@@ -739,6 +814,173 @@ export default function AdminAppointmentsPage() {
       }
     } catch (error) {
       console.error('Error deleting salwar measurement:', error)
+    } finally {
+      setIsUpdating(false)
+    }
+  }
+
+  const fetchAllLehengaMeasurements = async () => {
+    try {
+      const response = await fetch('/api/admin/lehenga-measurements')
+      if (response.ok) {
+        const data = await response.json()
+        setAllLehengaMeasurements(data)
+      }
+    } catch (error) {
+      console.error('Error fetching lehenga measurements:', error)
+    }
+  }
+
+  const startAddingLehengaMeasurement = () => {
+    // Close other forms first
+    setIsAddingStandaloneMeasurement(false)
+    setIsAddingSalwarMeasurement(false)
+    
+    setLehengaMeasurementForm({
+      userId: '',
+      blouseBackLength: '',
+      fullShoulder: '',
+      shoulderStrap: '',
+      backNeckDepth: '',
+      frontNeckDepth: '',
+      shoulderToApex: '',
+      frontLength: '',
+      chest: '',
+      waist: '',
+      sleeveLength: '',
+      armRound: '',
+      sleeveRound: '',
+      armHole: '',
+      lehengaWaist: '',
+      lehengaHip: '',
+      lehengaLength: '',
+      lehengaWidth: '',
+      notes: ''
+    })
+    setIsAddingLehengaMeasurement(true)
+  }
+
+  const handleLehengaMeasurementChange = (field: string, value: string) => {
+    setLehengaMeasurementForm(prev => ({ ...prev, [field]: value }))
+  }
+
+  const saveLehengaMeasurement = async (addAnother = false) => {
+    if (!lehengaMeasurementForm.userId) {
+      alert('Please select a user')
+      return
+    }
+
+    setIsUpdating(true)
+    try {
+      const response = await fetch('/api/admin/lehenga-measurements', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(lehengaMeasurementForm),
+      })
+
+      if (response.ok) {
+        await fetchAllLehengaMeasurements()
+        
+        if (addAnother) {
+          setLehengaMeasurementForm(prev => ({
+            ...prev,
+            blouseBackLength: '',
+            fullShoulder: '',
+            shoulderStrap: '',
+            backNeckDepth: '',
+            frontNeckDepth: '',
+            shoulderToApex: '',
+            frontLength: '',
+            chest: '',
+            waist: '',
+            sleeveLength: '',
+            armRound: '',
+            sleeveRound: '',
+            armHole: '',
+            lehengaWaist: '',
+            lehengaHip: '',
+            lehengaLength: '',
+            lehengaWidth: '',
+            notes: ''
+          }))
+        } else {
+          setIsAddingLehengaMeasurement(false)
+        }
+      }
+    } catch (error) {
+      console.error('Error saving lehenga measurement:', error)
+    } finally {
+      setIsUpdating(false)
+    }
+  }
+
+  const startEditingLehengaMeasurement = (measurement: LehengaMeasurement) => {
+    setLehengaMeasurementForm({
+      userId: measurement.userId || '',
+      blouseBackLength: measurement.blouseBackLength?.toString() || '',
+      fullShoulder: measurement.fullShoulder?.toString() || '',
+      shoulderStrap: measurement.shoulderStrap?.toString() || '',
+      backNeckDepth: measurement.backNeckDepth?.toString() || '',
+      frontNeckDepth: measurement.frontNeckDepth?.toString() || '',
+      shoulderToApex: measurement.shoulderToApex?.toString() || '',
+      frontLength: measurement.frontLength?.toString() || '',
+      chest: measurement.chest?.toString() || '',
+      waist: measurement.waist?.toString() || '',
+      sleeveLength: measurement.sleeveLength?.toString() || '',
+      armRound: measurement.armRound?.toString() || '',
+      sleeveRound: measurement.sleeveRound?.toString() || '',
+      armHole: measurement.armHole?.toString() || '',
+      lehengaWaist: measurement.lehengaWaist?.toString() || '',
+      lehengaHip: measurement.lehengaHip?.toString() || '',
+      lehengaLength: measurement.lehengaLength?.toString() || '',
+      lehengaWidth: measurement.lehengaWidth?.toString() || '',
+      notes: measurement.notes || ''
+    })
+    setEditingLehengaMeasurement(measurement)
+    setIsEditingLehengaMeasurement(true)
+  }
+
+  const saveLehengaMeasurementEdit = async () => {
+    if (!editingLehengaMeasurement) return
+
+    setIsUpdating(true)
+    try {
+      const response = await fetch(`/api/admin/lehenga-measurements/${editingLehengaMeasurement.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(lehengaMeasurementForm),
+      })
+
+      if (response.ok) {
+        await fetchAllLehengaMeasurements()
+        setIsEditingLehengaMeasurement(false)
+        setEditingLehengaMeasurement(null)
+      }
+    } catch (error) {
+      console.error('Error saving lehenga measurement:', error)
+    } finally {
+      setIsUpdating(false)
+    }
+  }
+
+  const deleteLehengaMeasurement = async (measurementId: string) => {
+    if (!confirm('Are you sure you want to delete this lehenga measurement?')) return
+
+    setIsUpdating(true)
+    try {
+      const response = await fetch(`/api/admin/lehenga-measurements/${measurementId}`, {
+        method: 'DELETE',
+      })
+
+      if (response.ok) {
+        await fetchAllLehengaMeasurements()
+      }
+    } catch (error) {
+      console.error('Error deleting lehenga measurement:', error)
     } finally {
       setIsUpdating(false)
     }
@@ -881,9 +1123,17 @@ export default function AdminAppointmentsPage() {
               <Button
                 onClick={startAddingSalwarMeasurement}
                 disabled={isAddingSalwarMeasurement}
+                variant="outline"
               >
                 <Ruler className="h-4 w-4 mr-2" />
                 Add Salwar Measurement
+              </Button>
+              <Button
+                onClick={startAddingLehengaMeasurement}
+                disabled={isAddingLehengaMeasurement}
+              >
+                <Ruler className="h-4 w-4 mr-2" />
+                Add Lehenga Measurement
               </Button>
             </div>
           </div>
@@ -1334,6 +1584,276 @@ export default function AdminAppointmentsPage() {
                 </Button>
                 <Button
                   onClick={() => setIsAddingSalwarMeasurement(false)}
+                  variant="outline"
+                  size="sm"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
+          
+          {/* Lehenga Measurement Form */}
+          {isAddingLehengaMeasurement && (
+            <div className="border rounded-lg p-4 bg-orange-50 mt-4">
+              <div className="flex items-center gap-2 mb-4">
+                <Ruler className="h-4 w-4" />
+                <span className="font-medium">Add New Lehenga Measurement</span>
+              </div>
+              
+              {/* User Selection */}
+              <div className="mb-4">
+                <Label htmlFor="lehengaUserSelect" className="text-sm font-medium">Select User *</Label>
+                <Select
+                  value={lehengaMeasurementForm.userId}
+                  onValueChange={(value) => handleLehengaMeasurementChange('userId', value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choose a user..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {users.map((user) => (
+                      <SelectItem key={user.id} value={user.id}>
+                        {user.name} ({user.email})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              {/* BLOUSE Section */}
+              <div className="mb-4">
+                <h4 className="font-medium text-orange-800 mb-3">BLOUSE MEASUREMENTS</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                  <div>
+                    <Label className="text-xs">Back Length (inches)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      placeholder="15"
+                      value={lehengaMeasurementForm.blouseBackLength}
+                      onChange={(e) => handleLehengaMeasurementChange('blouseBackLength', e.target.value)}
+                      className="h-8"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Full Shoulder (inches)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      placeholder="15"
+                      value={lehengaMeasurementForm.fullShoulder}
+                      onChange={(e) => handleLehengaMeasurementChange('fullShoulder', e.target.value)}
+                      className="h-8"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Shoulder Strap (inches)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      placeholder="5"
+                      value={lehengaMeasurementForm.shoulderStrap}
+                      onChange={(e) => handleLehengaMeasurementChange('shoulderStrap', e.target.value)}
+                      className="h-8"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Back Neck Depth (inches)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      placeholder="6"
+                      value={lehengaMeasurementForm.backNeckDepth}
+                      onChange={(e) => handleLehengaMeasurementChange('backNeckDepth', e.target.value)}
+                      className="h-8"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Front Neck Depth (inches)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      placeholder="7"
+                      value={lehengaMeasurementForm.frontNeckDepth}
+                      onChange={(e) => handleLehengaMeasurementChange('frontNeckDepth', e.target.value)}
+                      className="h-8"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Shoulder to Apex (inches)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      placeholder="10"
+                      value={lehengaMeasurementForm.shoulderToApex}
+                      onChange={(e) => handleLehengaMeasurementChange('shoulderToApex', e.target.value)}
+                      className="h-8"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Front Length (inches)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      placeholder="15"
+                      value={lehengaMeasurementForm.frontLength}
+                      onChange={(e) => handleLehengaMeasurementChange('frontLength', e.target.value)}
+                      className="h-8"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Chest (inches)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      placeholder="36"
+                      value={lehengaMeasurementForm.chest}
+                      onChange={(e) => handleLehengaMeasurementChange('chest', e.target.value)}
+                      className="h-8"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Waist (inches)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      placeholder="30"
+                      value={lehengaMeasurementForm.waist}
+                      onChange={(e) => handleLehengaMeasurementChange('waist', e.target.value)}
+                      className="h-8"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Sleeve Length (inches)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      placeholder="18"
+                      value={lehengaMeasurementForm.sleeveLength}
+                      onChange={(e) => handleLehengaMeasurementChange('sleeveLength', e.target.value)}
+                      className="h-8"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Arm Round (inches)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      placeholder="12"
+                      value={lehengaMeasurementForm.armRound}
+                      onChange={(e) => handleLehengaMeasurementChange('armRound', e.target.value)}
+                      className="h-8"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Sleeve Round (inches)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      placeholder="10"
+                      value={lehengaMeasurementForm.sleeveRound}
+                      onChange={(e) => handleLehengaMeasurementChange('sleeveRound', e.target.value)}
+                      className="h-8"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Arm Hole (inches)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      placeholder="16"
+                      value={lehengaMeasurementForm.armHole}
+                      onChange={(e) => handleLehengaMeasurementChange('armHole', e.target.value)}
+                      className="h-8"
+                    />
+                  </div>
+                </div>
+              </div>
+              
+              {/* LEHENGA Section */}
+              <div className="mb-4">
+                <h4 className="font-medium text-orange-800 mb-3">LEHENGA MEASUREMENTS</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                  <div>
+                    <Label className="text-xs">Lehenga Waist (inches)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      placeholder="30"
+                      value={lehengaMeasurementForm.lehengaWaist}
+                      onChange={(e) => handleLehengaMeasurementChange('lehengaWaist', e.target.value)}
+                      className="h-8"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Lehenga Hip (inches)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      placeholder="38"
+                      value={lehengaMeasurementForm.lehengaHip}
+                      onChange={(e) => handleLehengaMeasurementChange('lehengaHip', e.target.value)}
+                      className="h-8"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Lehenga Length (inches)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      placeholder="42"
+                      value={lehengaMeasurementForm.lehengaLength}
+                      onChange={(e) => handleLehengaMeasurementChange('lehengaLength', e.target.value)}
+                      className="h-8"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Lehenga Width (inches)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      placeholder="60"
+                      value={lehengaMeasurementForm.lehengaWidth}
+                      onChange={(e) => handleLehengaMeasurementChange('lehengaWidth', e.target.value)}
+                      className="h-8"
+                    />
+                  </div>
+                </div>
+              </div>
+              
+              <div className="mt-3">
+                <Label className="text-xs">Additional Notes</Label>
+                <Textarea
+                  placeholder="Any specific requirements or preferences..."
+                  value={lehengaMeasurementForm.notes}
+                  onChange={(e) => handleLehengaMeasurementChange('notes', e.target.value)}
+                  rows={2}
+                  className="text-sm"
+                />
+              </div>
+              
+              <div className="flex gap-2 mt-4">
+                <Button
+                  onClick={() => saveLehengaMeasurement(false)}
+                  disabled={isUpdating || !lehengaMeasurementForm.userId}
+                  size="sm"
+                  className="flex-1"
+                >
+                  <Save className="h-3 w-3 mr-1" />
+                  {isUpdating ? 'Saving...' : 'Save Lehenga Measurement'}
+                </Button>
+                <Button
+                  onClick={() => saveLehengaMeasurement(true)}
+                  disabled={isUpdating || !lehengaMeasurementForm.userId}
+                  variant="outline"
+                  size="sm"
+                >
+                  <Save className="h-3 w-3 mr-1" />
+                  Save & Add Another
+                </Button>
+                <Button
+                  onClick={() => setIsAddingLehengaMeasurement(false)}
                   variant="outline"
                   size="sm"
                 >
@@ -1825,6 +2345,288 @@ export default function AdminAppointmentsPage() {
         </div>
       )}
 
+      {/* Edit Lehenga Measurement Modal */}
+      {isEditingLehengaMeasurement && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-2">
+                  <Ruler className="h-5 w-5" />
+                  <h3 className="text-lg font-semibold">Edit Lehenga Measurement</h3>
+                  <span className="text-sm text-gray-500">
+                    for {editingLehengaMeasurement?.user?.name || 'Unknown User'}
+                  </span>
+                </div>
+                <Button
+                  onClick={() => {
+                    setIsEditingLehengaMeasurement(false)
+                    setEditingLehengaMeasurement(null)
+                  }}
+                  variant="outline"
+                  size="sm"
+                >
+                  ×
+                </Button>
+              </div>
+
+              {/* User Selection */}
+              <div className="mb-6">
+                <Label className="text-sm font-medium">User *</Label>
+                <Select
+                  value={lehengaMeasurementForm.userId}
+                  onValueChange={(value) => handleLehengaMeasurementChange('userId', value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a user" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {users.map((user) => (
+                      <SelectItem key={user.id} value={user.id}>
+                        {user.name} ({user.email})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* BLOUSE Section */}
+              <div className="mb-6">
+                <h4 className="font-medium text-orange-800 mb-3">BLOUSE MEASUREMENTS</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div>
+                    <Label className="text-xs">Back Length (inches)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      placeholder="15"
+                      value={lehengaMeasurementForm.blouseBackLength}
+                      onChange={(e) => handleLehengaMeasurementChange('blouseBackLength', e.target.value)}
+                      className="h-9"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Full Shoulder (inches)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      placeholder="15"
+                      value={lehengaMeasurementForm.fullShoulder}
+                      onChange={(e) => handleLehengaMeasurementChange('fullShoulder', e.target.value)}
+                      className="h-9"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Shoulder Strap (inches)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      placeholder="5"
+                      value={lehengaMeasurementForm.shoulderStrap}
+                      onChange={(e) => handleLehengaMeasurementChange('shoulderStrap', e.target.value)}
+                      className="h-9"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Back Neck Depth (inches)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      placeholder="6"
+                      value={lehengaMeasurementForm.backNeckDepth}
+                      onChange={(e) => handleLehengaMeasurementChange('backNeckDepth', e.target.value)}
+                      className="h-9"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Front Neck Depth (inches)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      placeholder="7"
+                      value={lehengaMeasurementForm.frontNeckDepth}
+                      onChange={(e) => handleLehengaMeasurementChange('frontNeckDepth', e.target.value)}
+                      className="h-9"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Shoulder to Apex (inches)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      placeholder="10"
+                      value={lehengaMeasurementForm.shoulderToApex}
+                      onChange={(e) => handleLehengaMeasurementChange('shoulderToApex', e.target.value)}
+                      className="h-9"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Front Length (inches)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      placeholder="15"
+                      value={lehengaMeasurementForm.frontLength}
+                      onChange={(e) => handleLehengaMeasurementChange('frontLength', e.target.value)}
+                      className="h-9"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Chest (inches)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      placeholder="36"
+                      value={lehengaMeasurementForm.chest}
+                      onChange={(e) => handleLehengaMeasurementChange('chest', e.target.value)}
+                      className="h-9"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Waist (inches)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      placeholder="30"
+                      value={lehengaMeasurementForm.waist}
+                      onChange={(e) => handleLehengaMeasurementChange('waist', e.target.value)}
+                      className="h-9"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Sleeve Length (inches)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      placeholder="18"
+                      value={lehengaMeasurementForm.sleeveLength}
+                      onChange={(e) => handleLehengaMeasurementChange('sleeveLength', e.target.value)}
+                      className="h-9"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Arm Round (inches)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      placeholder="12"
+                      value={lehengaMeasurementForm.armRound}
+                      onChange={(e) => handleLehengaMeasurementChange('armRound', e.target.value)}
+                      className="h-9"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Sleeve Round (inches)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      placeholder="10"
+                      value={lehengaMeasurementForm.sleeveRound}
+                      onChange={(e) => handleLehengaMeasurementChange('sleeveRound', e.target.value)}
+                      className="h-9"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Arm Hole (inches)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      placeholder="16"
+                      value={lehengaMeasurementForm.armHole}
+                      onChange={(e) => handleLehengaMeasurementChange('armHole', e.target.value)}
+                      className="h-9"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* LEHENGA Section */}
+              <div className="mb-6">
+                <h4 className="font-medium text-orange-800 mb-3">LEHENGA MEASUREMENTS</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div>
+                    <Label className="text-xs">Lehenga Waist (inches)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      placeholder="30"
+                      value={lehengaMeasurementForm.lehengaWaist}
+                      onChange={(e) => handleLehengaMeasurementChange('lehengaWaist', e.target.value)}
+                      className="h-9"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Lehenga Hip (inches)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      placeholder="38"
+                      value={lehengaMeasurementForm.lehengaHip}
+                      onChange={(e) => handleLehengaMeasurementChange('lehengaHip', e.target.value)}
+                      className="h-9"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Lehenga Length (inches)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      placeholder="42"
+                      value={lehengaMeasurementForm.lehengaLength}
+                      onChange={(e) => handleLehengaMeasurementChange('lehengaLength', e.target.value)}
+                      className="h-9"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Lehenga Width (inches)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      placeholder="60"
+                      value={lehengaMeasurementForm.lehengaWidth}
+                      onChange={(e) => handleLehengaMeasurementChange('lehengaWidth', e.target.value)}
+                      className="h-9"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Notes */}
+              <div className="mb-6">
+                <Label className="text-sm font-medium">Notes</Label>
+                <Textarea
+                  placeholder="Additional notes about this lehenga measurement..."
+                  value={lehengaMeasurementForm.notes}
+                  onChange={(e) => handleLehengaMeasurementChange('notes', e.target.value)}
+                  rows={3}
+                />
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3">
+                <Button
+                  onClick={saveLehengaMeasurementEdit}
+                  disabled={isUpdating || !lehengaMeasurementForm.userId}
+                  className="flex-1"
+                >
+                  <Save className="h-4 w-4 mr-2" />
+                  {isUpdating ? 'Saving...' : 'Save Changes'}
+                </Button>
+                <Button
+                  onClick={() => {
+                    setIsEditingLehengaMeasurement(false)
+                    setEditingLehengaMeasurement(null)
+                  }}
+                  variant="outline"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Filters */}
       <Card>
         <CardHeader>
@@ -1833,7 +2635,7 @@ export default function AdminAppointmentsPage() {
         <CardContent>
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1">
-              <Label htmlFor="search">Search by name, email, phone, or date</Label>
+              <Label htmlFor="search">Search by name, email, phone, date, or purpose</Label>
               <Input
                 id="search"
                 placeholder="Search appointments..."
@@ -1853,6 +2655,20 @@ export default function AdminAppointmentsPage() {
                   <SelectItem value="CONFIRMED">Confirmed</SelectItem>
                   <SelectItem value="COMPLETED">Completed</SelectItem>
                   <SelectItem value="CANCELLED">Cancelled</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="w-full md:w-48">
+              <Label htmlFor="purpose">Purpose</Label>
+              <Select value={purposeFilter} onValueChange={setPurposeFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select purpose" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Purposes</SelectItem>
+                  <SelectItem value="blouse">Blouse</SelectItem>
+                  <SelectItem value="salwar">Salwar Kameez</SelectItem>
+                  <SelectItem value="lehenga">Lehenga</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -2736,6 +3552,134 @@ export default function AdminAppointmentsPage() {
                         measurement.user?.email?.toLowerCase().includes(searchLower)
                       )
                     }).length} of {allSalwarMeasurements.length} total salwar measurement records</p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Lehenga Measurement Table Section */}
+        <div className="lg:col-span-3 mt-6">
+          <Card>
+            <CardHeader>
+              <div className="flex justify-between items-center">
+                <div>
+                  <CardTitle>Lehenga Measurement Table</CardTitle>
+                  <CardDescription>
+                    Manage detailed lehenga measurements with blouse and lehenga sections
+                  </CardDescription>
+                </div>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    placeholder="Search lehenga measurements..."
+                    value={measurementSearchTerm}
+                    onChange={(e) => setMeasurementSearchTerm(e.target.value)}
+                    className="pl-10 w-64"
+                  />
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="border rounded-lg overflow-hidden">
+                  <div className="max-h-96 overflow-y-auto">
+                    <table className="w-full">
+                      <thead className="bg-orange-50 sticky top-0">
+                        <tr>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-orange-700 uppercase">Date</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-orange-700 uppercase">User</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-orange-700 uppercase">Chest</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-orange-700 uppercase">Waist</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-orange-700 uppercase">L.Waist</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-orange-700 uppercase">L.Length</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-orange-700 uppercase">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {allLehengaMeasurements.filter(measurement => {
+                          if (!measurementSearchTerm) return true
+                          const searchLower = measurementSearchTerm.toLowerCase()
+                          return (
+                            measurement.user?.name?.toLowerCase().includes(searchLower) ||
+                            measurement.user?.email?.toLowerCase().includes(searchLower)
+                          )
+                        }).length === 0 ? (
+                          <tr>
+                            <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
+                              {measurementSearchTerm ? 'No lehenga measurements found matching your search.' : 'No lehenga measurements found. Use the "Add Lehenga Measurement" button above to create one.'}
+                            </td>
+                          </tr>
+                        ) : (
+                          allLehengaMeasurements.filter(measurement => {
+                            if (!measurementSearchTerm) return true
+                            const searchLower = measurementSearchTerm.toLowerCase()
+                            return (
+                              measurement.user?.name?.toLowerCase().includes(searchLower) ||
+                              measurement.user?.email?.toLowerCase().includes(searchLower)
+                            )
+                          }).map((measurement) => (
+                            <tr key={measurement.id} className="hover:bg-orange-50">
+                              <td className="px-4 py-2 text-sm">
+                                {format(new Date(measurement.createdAt), 'MMM dd, yyyy')}
+                              </td>
+                              <td className="px-4 py-2 text-sm">
+                                <div>
+                                  <div className="font-medium">{measurement.user?.name || 'Unknown'}</div>
+                                  <div className="text-xs text-gray-500">{measurement.user?.email}</div>
+                                </div>
+                              </td>
+                              <td className="px-4 py-2 text-sm">
+                                {measurement.chest ? `${measurement.chest}"` : '-'}
+                              </td>
+                              <td className="px-4 py-2 text-sm">
+                                {measurement.waist ? `${measurement.waist}"` : '-'}
+                              </td>
+                              <td className="px-4 py-2 text-sm">
+                                {measurement.lehengaWaist ? `${measurement.lehengaWaist}"` : '-'}
+                              </td>
+                              <td className="px-4 py-2 text-sm">
+                                {measurement.lehengaLength ? `${measurement.lehengaLength}"` : '-'}
+                              </td>
+                              <td className="px-4 py-2 text-sm">
+                                <div className="flex gap-1">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => startEditingLehengaMeasurement(measurement)}
+                                    className="h-7 px-2 text-xs"
+                                  >
+                                    Edit
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => deleteLehengaMeasurement(measurement.id)}
+                                    className="h-7 px-2 text-xs text-red-600 hover:text-red-700"
+                                  >
+                                    Delete
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {allLehengaMeasurements.length > 0 && (
+                  <div className="text-sm text-gray-600">
+                    <p>Showing {allLehengaMeasurements.filter(measurement => {
+                      if (!measurementSearchTerm) return true
+                      const searchLower = measurementSearchTerm.toLowerCase()
+                      return (
+                        measurement.user?.name?.toLowerCase().includes(searchLower) ||
+                        measurement.user?.email?.toLowerCase().includes(searchLower)
+                      )
+                    }).length} of {allLehengaMeasurements.length} total lehenga measurement records</p>
                   </div>
                 )}
               </div>
