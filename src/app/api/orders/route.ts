@@ -138,6 +138,8 @@ export async function POST(request: NextRequest) {
       
       // Handle custom design orders
       if ((item.productId === "custom-blouse" || item.productId === "custom-salwar-kameez" || item.productId === "custom-lehenga") && item.customDesign) {
+        console.log('🎨 Creating custom order for:', item.productId)
+        
         // Create custom order record
         const customOrder = await db.customOrder.create({
           data: {
@@ -154,6 +156,62 @@ export async function POST(request: NextRequest) {
             appointmentPurpose: item.customDesign.appointmentPurpose || null
           }
         })
+        
+        console.log('✅ Custom order created:', customOrder.id)
+        
+        // Create specific measurement records based on design type
+        if (item.productId === "custom-lehenga" && item.customDesign.measurements) {
+          console.log('📏 Creating lehenga measurements...')
+          await db.lehengaMeasurement.create({
+            data: {
+              customOrderId: customOrder.id,
+              userId,
+              // Blouse measurements
+              chest: item.customDesign.measurements.chest ? parseFloat(item.customDesign.measurements.chest) : null,
+              waist: item.customDesign.measurements.waist ? parseFloat(item.customDesign.measurements.waist) : null,
+              fullShoulder: item.customDesign.measurements.shoulder ? parseFloat(item.customDesign.measurements.shoulder) : null,
+              sleeveLength: item.customDesign.measurements.sleeveLength ? parseFloat(item.customDesign.measurements.sleeveLength) : null,
+              frontLength: item.customDesign.measurements.blouseLength ? parseFloat(item.customDesign.measurements.blouseLength) : null,
+              // Lehenga measurements
+              lehengaWaist: item.customDesign.measurements.lehengaWaist ? parseFloat(item.customDesign.measurements.lehengaWaist) : null,
+              lehengaHip: item.customDesign.measurements.lehengaHip ? parseFloat(item.customDesign.measurements.lehengaHip) : null,
+              lehengaLength: item.customDesign.measurements.lehengaLength ? parseFloat(item.customDesign.measurements.lehengaLength) : null,
+              notes: item.customDesign.measurements.notes || null
+            }
+          })
+          console.log('✅ Lehenga measurements created')
+        } else if (item.productId === "custom-salwar-kameez" && item.customDesign.measurements) {
+          console.log('📏 Creating salwar measurements...')
+          await db.salwarMeasurement.create({
+            data: {
+              customOrderId: customOrder.id,
+              userId,
+              bust: item.customDesign.measurements.chest ? parseFloat(item.customDesign.measurements.chest) : null,
+              waist: item.customDesign.measurements.waist ? parseFloat(item.customDesign.measurements.waist) : null,
+              shoulder: item.customDesign.measurements.shoulder ? parseFloat(item.customDesign.measurements.shoulder) : null,
+              sleeveLength: item.customDesign.measurements.sleeveLength ? parseFloat(item.customDesign.measurements.sleeveLength) : null,
+              kameezLength: item.customDesign.measurements.kameezLength ? parseFloat(item.customDesign.measurements.kameezLength) : null,
+              salwarLength: item.customDesign.measurements.salwarLength ? parseFloat(item.customDesign.measurements.salwarLength) : null,
+              notes: item.customDesign.measurements.notes || null
+            }
+          })
+          console.log('✅ Salwar measurements created')
+        } else if (item.productId === "custom-blouse" && item.customDesign.measurements) {
+          console.log('📏 Creating blouse measurements...')
+          await db.measurement.create({
+            data: {
+              customOrderId: customOrder.id,
+              userId,
+              chest: item.customDesign.measurements.chest ? parseFloat(item.customDesign.measurements.chest) : null,
+              waist: item.customDesign.measurements.waist ? parseFloat(item.customDesign.measurements.waist) : null,
+              fullShoulder: item.customDesign.measurements.shoulder ? parseFloat(item.customDesign.measurements.shoulder) : null,
+              sleeveLength: item.customDesign.measurements.sleeveLength ? parseFloat(item.customDesign.measurements.sleeveLength) : null,
+              frontLength: item.customDesign.measurements.frontLength ? parseFloat(item.customDesign.measurements.frontLength) : null,
+              notes: item.customDesign.measurements.notes || null
+            }
+          })
+          console.log('✅ Blouse measurements created')
+        }
 
         // Create order item that references the virtual product
         await db.orderItem.create({

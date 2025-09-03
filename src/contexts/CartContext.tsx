@@ -46,8 +46,10 @@ const CartContext = createContext<CartContextType | undefined>(undefined)
 function cartReducer(state: CartState, action: CartAction): CartState {
   switch (action.type) {
     case "ADD_ITEM": {
-      // For custom design items (productId === "custom-blouse"), each item is unique
-      if (action.payload.productId === "custom-blouse" && action.payload.customDesign) {
+      // For custom design items, each item is unique
+      if ((action.payload.productId === "custom-blouse" || 
+           action.payload.productId === "custom-salwar-kameez" || 
+           action.payload.productId === "custom-lehenga") && action.payload.customDesign) {
         const newItem: CartItem = {
           ...action.payload,
           id: `custom-${Date.now()}-${Math.random()}`
@@ -183,11 +185,16 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     // Build description with customization details
     let description = `${item.name} has been added to your cart.`
     
-    if (item.productId === "custom-blouse" && item.customDesign) {
-      // For custom blouses, add more specific details
+    if ((item.productId === "custom-blouse" || 
+         item.productId === "custom-salwar-kameez" || 
+         item.productId === "custom-lehenga") && item.customDesign) {
+      // For custom designs, add more specific details
       const customDetails = []
       if (item.customDesign.fabric) {
         customDetails.push(`Fabric: ${item.customDesign.fabric.name}`)
+      }
+      if (item.customDesign.selectedModel) {
+        customDetails.push(`Model: ${item.customDesign.selectedModel.name}`)
       }
       if (item.customDesign.frontDesign) {
         customDetails.push(`Front Design: ${item.customDesign.frontDesign.name}`)

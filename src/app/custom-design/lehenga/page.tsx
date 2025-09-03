@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Progress } from "@/components/ui/progress"
 import { Separator } from "@/components/ui/separator"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { 
   ArrowLeft, 
   ArrowRight, 
@@ -21,7 +22,10 @@ import {
   Upload,
   ShoppingCart,
   Loader2,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Search,
+  Filter,
+  SlidersHorizontal
 } from "lucide-react"
 import { useCart } from "@/contexts/CartContext"
 import { useToast } from "@/hooks/use-toast"
@@ -117,6 +121,9 @@ export default function CustomLehengaDesignPage() {
   const [showCollectionCard, setShowCollectionCard] = useState(true)
   const [manualMeasurementsEnabled, setManualMeasurementsEnabled] = useState(true)
   const [isLoadingConfig, setIsLoadingConfig] = useState(false)
+  const [searchTerm, setSearchTerm] = useState("")
+  const [sortBy, setSortBy] = useState<"name" | "price-low" | "price-high">("name")
+  const [priceRange, setPriceRange] = useState({ min: "", max: "" })
   
   const { addItem } = useCart()
   const { toast } = useToast()
@@ -211,17 +218,10 @@ export default function CustomLehengaDesignPage() {
     setIsLoading(true)
     setError(null)
     try {
-      // For now, we'll use salwar models as placeholder until lehenga models are implemented
-      const response = await fetch("/api/salwar-kameez-models?page=1&limit=100")
+      const response = await fetch("/api/lehenga-models")
       if (response.ok) {
         const data = await response.json()
-        // Transform salwar models to lehenga models for demo purposes
-        const lehengaModels = data.models.map(model => ({
-          ...model,
-          name: model.name.replace("Salwar", "Lehenga"),
-          designName: model.designName.replace("Salwar", "Lehenga")
-        }))
-        setModels(lehengaModels)
+        setModels(data.models || [])
       } else {
         throw new Error("Failed to fetch lehenga models")
       }
@@ -256,6 +256,27 @@ export default function CustomLehengaDesignPage() {
 
   const formatPrice = (price: number) => {
     return `₹${price.toLocaleString()}`
+  }
+
+  const getFilteredAndSortedModels = () => {
+    let filteredModels = models.filter(model => {
+      const matchesSearch = model.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           model.designName.toLowerCase().includes(searchTerm.toLowerCase())
+      
+      const matchesPrice = (!priceRange.min || model.finalPrice >= parseFloat(priceRange.min)) &&
+                          (!priceRange.max || model.finalPrice <= parseFloat(priceRange.max))
+      
+      return matchesSearch && matchesPrice
+    })
+
+    switch (sortBy) {
+      case "price-low":
+        return filteredModels.sort((a, b) => a.finalPrice - b.finalPrice)
+      case "price-high":
+        return filteredModels.sort((a, b) => b.finalPrice - a.finalPrice)
+      default:
+        return filteredModels.sort((a, b) => a.name.localeCompare(b.name))
+    }
   }
 
   const handleModelSelect = (model: LehengaModel) => {
@@ -666,16 +687,97 @@ export default function CustomLehengaDesignPage() {
               <p className="text-gray-600">Choose from our beautiful lehenga designs</p>
             </div>
 
-            <div className="space-y-6">
-              {models.length === 0 ? (
-                <div className="text-center py-12">
-                  <ImageIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No models available</h3>
-                  <p className="text-gray-600">Please check back later for available models.</p>
+            {/* Search and Filter Controls */}
+            <div className="max-w-4xl mx-auto">
+              <Card className="p-4">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  {/* Search */}
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Input
+                      placeholder="Search models..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                  
+                  {/* Sort */}
+                  <Select value={sortBy} onValueChange={(value: "name" | "price-low" | "price-high") => setSortBy(value)}>
+                    <SelectTrigger>
+                      <SlidersHorizontal className="h-4 w-4 mr-2" />
+                      <SelectValue placeholder="Sort by" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="name">Name A-Z</SelectItem>
+                      <SelectItem value="price-low">Price: Low to High</SelectItem>
+                      <SelectItem value="price-high">Price: High to Low</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  
+                  {/* Price Range */}
+                  <div className="flex space-x-2">
+                    <Input
+                      type="number"
+                      placeholder="Min price"
+                      value={priceRange.min}
+                      onChange={(e) => setPriceRange(prev => ({ ...prev, min: e.target.value }))}
+                    />
+                    <Input
+                      type="number"
+                      placeholder="Max price"
+                      value={priceRange.max}
+                      onChange={(e) => setPriceRange(prev => ({ ...prev, max: e.target.value }))}
+                    />
+                  </div>
+                  
+                  {/* Clear Filters */}
+                  <Button 
+                    variant="outline" 
+                    onClick={() => {
+                      setSearchTerm("")
+                      setSortBy("name")
+                      setPriceRange({ min: "", max: "" })
+                    }}
+                  >
+                    <Filter className="h-4 w-4 mr-2" />
+                    Clear
+                  </Button>
                 </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {models.map((model) => {
+              </Card>
+            </div>
+
+            <div className="space-y-6">
+              {(() => {
+                const filteredModels = getFilteredAndSortedModels()
+                
+                if (models.length === 0) {
+                  return (
+                    <div className="text-center py-12">
+                      <ImageIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">No models available</h3>
+                      <p className="text-gray-600">Please check back later for available models.</p>
+                    </div>
+                  )
+                }
+                
+                if (filteredModels.length === 0) {
+                  return (
+                    <div className="text-center py-12">
+                      <Search className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">No models match your criteria</h3>
+                      <p className="text-gray-600">Try adjusting your search or filter settings.</p>
+                    </div>
+                  )
+                }
+                
+                return (
+                  <>
+                    <div className="text-center text-sm text-gray-600 mb-4">
+                      Showing {filteredModels.length} of {models.length} models
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {filteredModels.map((model) => {
                     const isSelected = design.selectedModel?.id === model.id
 
                     return (
@@ -748,8 +850,10 @@ export default function CustomLehengaDesignPage() {
                       </Card>
                     )
                   })}
-                </div>
-              )}
+                    </div>
+                  </>
+                )
+              })()}
             </div>
 
             <div className="flex justify-center">
