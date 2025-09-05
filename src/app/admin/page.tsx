@@ -52,46 +52,53 @@ export default function AdminDashboard() {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    // Simulate API call to fetch dashboard data
     const fetchDashboardData = async () => {
       setIsLoading(true)
       try {
-        // In a real app, this would be an API call
-        // For now, we'll use mock data
-        const mockData: DashboardStats = {
-          totalSales: 1250000,
-          totalOrders: 856,
-          totalUsers: 2341,
-          totalProducts: 156,
-          totalCustomOrders: 45,
-          pendingCustomOrders: 8,
-          recentOrders: [
-            { id: "ORD-001", customer: "Priya Sharma", amount: 2999, status: "DELIVERED", date: "2024-01-15" },
-            { id: "ORD-002", customer: "Ananya Reddy", amount: 1599, status: "PROCESSING", date: "2024-01-15" },
-            { id: "ORD-003", customer: "Meera Patel", amount: 8999, status: "SHIPPED", date: "2024-01-14" },
-            { id: "ORD-004", customer: "Sneha Nair", amount: 1299, status: "PENDING", date: "2024-01-14" },
-            { id: "ORD-005", customer: "Ritu Singh", amount: 3499, status: "CONFIRMED", date: "2024-01-13" }
-          ],
-          topProducts: [
-            { id: "1", name: "Elegant Silk Saree", sales: 234, revenue: 561666 },
-            { id: "2", name: "Designer Kurti Set", sales: 189, revenue: 302211 },
-            { id: "3", name: "Bridal Lehenga", sales: 45, revenue: 404955 },
-            { id: "4", name: "Casual Cotton Dress", sales: 167, revenue: 150033 },
-            { id: "5", name: "Party Wear Gown", sales: 89, revenue: 233561 }
-          ],
-          lowStockProducts: [
-            { id: "6", name: "Traditional Salwar Suit", stock: 3, minStock: 10 },
-            { id: "7", name: "Festive Collection Saree", stock: 5, minStock: 15 },
-            { id: "8", name: "Summer Kurti", stock: 2, minStock: 20 }
-          ]
-        }
+        // Fetch real dashboard data from API
+        const response = await fetch('/api/admin/dashboard', {
+          credentials: 'include'
+        })
         
-        setTimeout(() => {
-          setStats(mockData)
-          setIsLoading(false)
-        }, 1000)
+        if (response.ok) {
+          const data = await response.json()
+          
+          // Fetch custom orders data
+          const customOrdersResponse = await fetch('/api/admin/custom-orders', {
+            credentials: 'include'
+          })
+          
+          let customOrdersData = { orders: [] }
+          if (customOrdersResponse.ok) {
+            customOrdersData = await customOrdersResponse.json()
+          }
+          
+          const totalCustomOrders = customOrdersData.orders?.length || 0
+          const pendingCustomOrders = customOrdersData.orders?.filter(order => order.status === 'PENDING').length || 0
+          
+          setStats({
+            ...data,
+            totalCustomOrders,
+            pendingCustomOrders
+          })
+        } else {
+          throw new Error('Failed to fetch dashboard data')
+        }
       } catch (error) {
         console.error("Error fetching dashboard data:", error)
+        // Fallback to empty data on error
+        setStats({
+          totalSales: 0,
+          totalOrders: 0,
+          totalUsers: 0,
+          totalProducts: 0,
+          totalCustomOrders: 0,
+          pendingCustomOrders: 0,
+          recentOrders: [],
+          topProducts: [],
+          lowStockProducts: []
+        })
+      } finally {
         setIsLoading(false)
       }
     }
@@ -328,28 +335,36 @@ export default function AdminDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {stats.recentOrders.map((order) => (
-                    <div key={order.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center space-x-4">
-                        <div>
-                          <p className="font-medium">{order.id}</p>
-                          <p className="text-sm text-gray-600">{order.customer}</p>
+                  {stats.recentOrders.length > 0 ? (
+                    stats.recentOrders.map((order) => (
+                      <div key={order.id} className="flex items-center justify-between p-4 border rounded-lg">
+                        <div className="flex items-center space-x-4">
+                          <div>
+                            <p className="font-medium">{order.id}</p>
+                            <p className="text-sm text-gray-600">{order.customer}</p>
+                          </div>
+                          <div>
+                            <p className="font-medium">{formatPrice(order.amount)}</p>
+                            <p className="text-sm text-gray-600">{order.date}</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-medium">{formatPrice(order.amount)}</p>
-                          <p className="text-sm text-gray-600">{order.date}</p>
+                        <div className="flex items-center space-x-2">
+                          <Badge className={getStatusColor(order.status)}>
+                            {order.status}
+                          </Badge>
+                          <Button variant="ghost" size="icon">
+                            <Eye className="h-4 w-4" />
+                          </Button>
                         </div>
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <Badge className={getStatusColor(order.status)}>
-                          {order.status}
-                        </Badge>
-                        <Button variant="ghost" size="icon">
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-8">
+                      <ShoppingCart className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">No Recent Orders</h3>
+                      <p className="text-gray-600">No orders have been placed yet or all orders are from test accounts.</p>
                     </div>
-                  ))}
+                  )}
                 </div>
               </CardContent>
             </Card>

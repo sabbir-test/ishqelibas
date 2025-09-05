@@ -32,6 +32,8 @@ interface CustomOrder {
   price: number
   notes?: string
   appointmentDate?: string
+  appointmentPurpose?: string
+  orderType?: string
   createdAt: string
   updatedAt: string
   user?: {
@@ -39,25 +41,7 @@ interface CustomOrder {
     name: string
     email: string
   }
-  userMeasurements?: {
-    id: string
-    blouseBackLength: number | null
-    fullShoulder: number | null
-    shoulderStrap: number | null
-    backNeckDepth: number | null
-    frontNeckDepth: number | null
-    shoulderToApex: number | null
-    frontLength: number | null
-    chest: number | null
-    waist: number | null
-    sleeveLength: number | null
-    armRound: number | null
-    sleeveRound: number | null
-    armHole: number | null
-    notes: string
-    createdAt: string
-    updatedAt: string
-  } | null
+  userMeasurements?: any // Can be blouse, salwar, or lehenga measurements
 }
 
 export default function AdminCustomOrdersPage() {
@@ -238,7 +222,7 @@ export default function AdminCustomOrdersPage() {
           <div className="flex justify-between items-center py-6">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Custom Orders Management</h1>
-              <p className="text-gray-600">Manage custom blouse design orders and track production</p>
+              <p className="text-gray-600">Manage all custom design orders (blouse, salwar, lehenga) and track production</p>
             </div>
             <div className="flex items-center space-x-4">
               <div className="relative">
@@ -384,6 +368,7 @@ export default function AdminCustomOrdersPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Order ID</TableHead>
+                  <TableHead>Type</TableHead>
                   <TableHead>Customer</TableHead>
                   <TableHead>Fabric</TableHead>
                   <TableHead>Design</TableHead>
@@ -397,7 +382,7 @@ export default function AdminCustomOrdersPage() {
               <TableBody>
                 {filteredOrders.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-12">
+                    <TableCell colSpan={10} className="text-center py-12">
                       <div className="flex flex-col items-center space-y-4">
                         <Package className="h-12 w-12 text-gray-400" />
                         <div>
@@ -420,9 +405,25 @@ export default function AdminCustomOrdersPage() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredOrders.map((order) => (
+                  filteredOrders.map((order) => {
+                    const getOrderTypeDisplay = (order: CustomOrder) => {
+                      const type = order.orderType || order.appointmentPurpose || 'blouse'
+                      const colors = {
+                        'blouse': 'bg-pink-100 text-pink-800',
+                        'salwar-kameez': 'bg-blue-100 text-blue-800', 
+                        'lehenga': 'bg-purple-100 text-purple-800'
+                      }
+                      return (
+                        <Badge className={colors[type as keyof typeof colors] || 'bg-gray-100 text-gray-800'}>
+                          {type === 'salwar-kameez' ? 'Salwar' : type.charAt(0).toUpperCase() + type.slice(1)}
+                        </Badge>
+                      )
+                    }
+                    
+                    return (
                     <TableRow key={order.id}>
                       <TableCell className="font-medium">#{order.id.slice(-6)}</TableCell>
+                      <TableCell>{getOrderTypeDisplay(order)}</TableCell>
                       <TableCell>
                         <div>
                           <p className="font-medium">{order.user?.name || "Unknown"}</p>
@@ -490,7 +491,8 @@ export default function AdminCustomOrdersPage() {
                         </Button>
                       </TableCell>
                     </TableRow>
-                  ))
+                    )
+                  })
                 )}
               </TableBody>
             </Table>
@@ -555,52 +557,92 @@ export default function AdminCustomOrdersPage() {
                   {selectedOrder.userMeasurements ? (
                     <div className="space-y-4">
                       {(() => {
-                        // Complete field mapping from measurement table
-                        const measurementFields = {
-                          chest: 'Chest',
-                          waist: 'Waist',
-                          blouseBackLength: 'Blouse Back Length',
-                          fullShoulder: 'Full Shoulder',
-                          shoulderStrap: 'Shoulder Strap',
-                          backNeckDepth: 'Back Neck Depth',
-                          frontNeckDepth: 'Front Neck Depth',
-                          shoulderToApex: 'Shoulder to Apex',
-                          frontLength: 'Front Length',
-                          sleeveLength: 'Sleeve Length',
-                          armRound: 'Arm Round',
-                          sleeveRound: 'Sleeve Round',
-                          armHole: 'Arm Hole'
+                        const measurements = selectedOrder.userMeasurements
+                        const orderType = selectedOrder.orderType || selectedOrder.appointmentPurpose || 'blouse'
+                        
+                        // Define measurement fields based on order type
+                        let measurementFields = {}
+                        
+                        if (orderType === 'lehenga') {
+                          measurementFields = {
+                            // Blouse measurements
+                            chest: 'Chest',
+                            waist: 'Waist', 
+                            fullShoulder: 'Full Shoulder',
+                            sleeveLength: 'Sleeve Length',
+                            frontLength: 'Blouse Length',
+                            // Lehenga measurements
+                            lehengaWaist: 'Lehenga Waist',
+                            lehengaHip: 'Lehenga Hip',
+                            lehengaLength: 'Lehenga Length'
+                          }
+                        } else if (orderType === 'salwar-kameez') {
+                          measurementFields = {
+                            bust: 'Bust',
+                            waist: 'Waist',
+                            hip: 'Hip',
+                            shoulder: 'Shoulder',
+                            sleeveLength: 'Sleeve Length',
+                            kameezLength: 'Kameez Length',
+                            salwarLength: 'Salwar Length',
+                            thighRound: 'Thigh Round',
+                            kneeRound: 'Knee Round',
+                            ankleRound: 'Ankle Round'
+                          }
+                        } else {
+                          // Blouse measurements
+                          measurementFields = {
+                            chest: 'Chest',
+                            waist: 'Waist',
+                            blouseBackLength: 'Blouse Back Length',
+                            fullShoulder: 'Full Shoulder',
+                            shoulderStrap: 'Shoulder Strap',
+                            backNeckDepth: 'Back Neck Depth',
+                            frontNeckDepth: 'Front Neck Depth',
+                            shoulderToApex: 'Shoulder to Apex',
+                            frontLength: 'Front Length',
+                            sleeveLength: 'Sleeve Length',
+                            armRound: 'Arm Round',
+                            sleeveRound: 'Sleeve Round',
+                            armHole: 'Arm Hole'
+                          }
                         }
 
-                        const measurements = selectedOrder.userMeasurements
                         const measurementEntries = Object.entries(measurementFields)
                         const midPoint = Math.ceil(measurementEntries.length / 2)
                         const leftColumn = measurementEntries.slice(0, midPoint)
                         const rightColumn = measurementEntries.slice(midPoint)
 
                         return (
-                          <div className="grid grid-cols-2 gap-4 text-sm">
-                            <div className="space-y-2">
-                              {leftColumn.map(([field, label]) => {
-                                const value = measurements[field as keyof typeof measurements]
-                                return value !== null && value !== undefined ? (
-                                  <div key={field} className="flex justify-between">
-                                    <span className="font-medium">{label}:</span>
-                                    <span>{value}"</span>
-                                  </div>
-                                ) : null
-                              })}
+                          <div>
+                            <div className="mb-3">
+                              <Badge className="bg-blue-100 text-blue-800">
+                                {orderType === 'salwar-kameez' ? 'Salwar Kameez' : orderType.charAt(0).toUpperCase() + orderType.slice(1)} Measurements
+                              </Badge>
                             </div>
-                            <div className="space-y-2">
-                              {rightColumn.map(([field, label]) => {
-                                const value = measurements[field as keyof typeof measurements]
-                                return value !== null && value !== undefined ? (
-                                  <div key={field} className="flex justify-between">
-                                    <span className="font-medium">{label}:</span>
-                                    <span>{value}"</span>
-                                  </div>
-                                ) : null
-                              })}
+                            <div className="grid grid-cols-2 gap-4 text-sm">
+                              <div className="space-y-2">
+                                {leftColumn.map(([field, label]) => {
+                                  const value = measurements[field as keyof typeof measurements]
+                                  return value !== null && value !== undefined ? (
+                                    <div key={field} className="flex justify-between">
+                                      <span className="font-medium">{label}:</span>
+                                      <span>{value}"</span>
+                                    </div>
+                                  ) : null
+                                })}
+                              </div>
+                              <div className="space-y-2">
+                                {rightColumn.map(([field, label]) => {
+                                  const value = measurements[field as keyof typeof measurements]
+                                  return value !== null && value !== undefined ? (
+                                    <div key={field} className="flex justify-between">
+                                      <span className="font-medium">{label}:</span>
+                                      <span>{value}"</span>
+                                    </div>
+                                  ) : null
+                                })}
+                              </div>
                             </div>
                           </div>
                         )

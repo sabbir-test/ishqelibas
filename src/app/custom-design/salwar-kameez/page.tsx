@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Progress } from "@/components/ui/progress"
 import { Separator } from "@/components/ui/separator"
+import { ModelFilterBar } from "@/components/ui/model-filter-bar"
 import { 
   ArrowLeft, 
   ArrowRight, 
@@ -21,7 +22,8 @@ import {
   Upload,
   ShoppingCart,
   Loader2,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Search
 } from "lucide-react"
 import { useCart } from "@/contexts/CartContext"
 import { useToast } from "@/hooks/use-toast"
@@ -113,6 +115,9 @@ export default function CustomSalwarKameezDesignPage() {
   const [showCollectionCard, setShowCollectionCard] = useState(true)
   const [manualMeasurementsEnabled, setManualMeasurementsEnabled] = useState(true)
   const [isLoadingConfig, setIsLoadingConfig] = useState(false)
+  const [searchTerm, setSearchTerm] = useState("")
+  const [sortBy, setSortBy] = useState("name-asc")
+  const [priceRange, setPriceRange] = useState({ min: "", max: "" })
   
   const { addItem } = useCart()
   const { toast } = useToast()
@@ -281,6 +286,43 @@ export default function CustomSalwarKameezDesignPage() {
 
   const isProfessionalMeasurementSelected = () => {
     return design.appointmentType && design.appointmentDate
+  }
+
+  const filteredAndSortedModels = () => {
+    let filtered = models.filter(model => {
+      // Text search filter
+      const matchesSearch = model.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        model.designName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        model.description?.toLowerCase().includes(searchTerm.toLowerCase())
+      
+      // Price range filter
+      const minPrice = priceRange.min ? parseFloat(priceRange.min) : 0
+      const maxPrice = priceRange.max ? parseFloat(priceRange.max) : Infinity
+      const matchesPrice = model.finalPrice >= minPrice && model.finalPrice <= maxPrice
+      
+      return matchesSearch && matchesPrice
+    })
+
+    return filtered.sort((a, b) => {
+      switch (sortBy) {
+        case "price-asc":
+          return a.finalPrice - b.finalPrice
+        case "price-desc":
+          return b.finalPrice - a.finalPrice
+        case "name-desc":
+          return b.name.toLowerCase().localeCompare(a.name.toLowerCase())
+        case "rating":
+          return (b.rating || 0) - (a.rating || 0)
+        default: // name-asc
+          return a.name.toLowerCase().localeCompare(b.name.toLowerCase())
+      }
+    })
+  }
+
+  const handleClearFilters = () => {
+    setSearchTerm("")
+    setSortBy("name-asc")
+    setPriceRange({ min: "", max: "" })
   }
 
   const handleAddToCart = async () => {
@@ -655,6 +697,19 @@ export default function CustomSalwarKameezDesignPage() {
               <p className="text-gray-600">Choose from our beautiful salwar kameez designs</p>
             </div>
 
+            {/* Filter Bar */}
+            <div className="max-w-6xl mx-auto mb-6">
+              <ModelFilterBar
+                searchTerm={searchTerm}
+                onSearchChange={setSearchTerm}
+                sortBy={sortBy}
+                onSortChange={setSortBy}
+                priceRange={priceRange}
+                onPriceRangeChange={setPriceRange}
+                onClearFilters={handleClearFilters}
+              />
+            </div>
+
             <div className="space-y-6">
               {models.length === 0 ? (
                 <div className="text-center py-12">
@@ -662,9 +717,22 @@ export default function CustomSalwarKameezDesignPage() {
                   <h3 className="text-lg font-medium text-gray-900 mb-2">No models available</h3>
                   <p className="text-gray-600">Please check back later for available models.</p>
                 </div>
+              ) : filteredAndSortedModels().length === 0 ? (
+                <div className="text-center py-12">
+                  <Search className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No models found</h3>
+                  <p className="text-gray-600">Try adjusting your search terms or price range.</p>
+                  <Button 
+                    variant="outline" 
+                    onClick={handleClearFilters}
+                    className="mt-4"
+                  >
+                    Clear All Filters
+                  </Button>
+                </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {models.map((model) => {
+                  {filteredAndSortedModels().map((model) => {
                     const isSelected = design.selectedModel?.id === model.id
 
                     return (

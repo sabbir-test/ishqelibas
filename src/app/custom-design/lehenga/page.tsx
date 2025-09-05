@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Progress } from "@/components/ui/progress"
 import { Separator } from "@/components/ui/separator"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { ModelFilterBar } from "@/components/ui/model-filter-bar"
 import { 
   ArrowLeft, 
   ArrowRight, 
@@ -23,9 +24,7 @@ import {
   ShoppingCart,
   Loader2,
   Image as ImageIcon,
-  Search,
-  Filter,
-  SlidersHorizontal
+  Search
 } from "lucide-react"
 import { useCart } from "@/contexts/CartContext"
 import { useToast } from "@/hooks/use-toast"
@@ -122,7 +121,7 @@ export default function CustomLehengaDesignPage() {
   const [manualMeasurementsEnabled, setManualMeasurementsEnabled] = useState(true)
   const [isLoadingConfig, setIsLoadingConfig] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
-  const [sortBy, setSortBy] = useState<"name" | "price-low" | "price-high">("name")
+  const [sortBy, setSortBy] = useState("name-asc")
   const [priceRange, setPriceRange] = useState({ min: "", max: "" })
   
   const { addItem } = useCart()
@@ -269,14 +268,26 @@ export default function CustomLehengaDesignPage() {
       return matchesSearch && matchesPrice
     })
 
-    switch (sortBy) {
-      case "price-low":
-        return filteredModels.sort((a, b) => a.finalPrice - b.finalPrice)
-      case "price-high":
-        return filteredModels.sort((a, b) => b.finalPrice - a.finalPrice)
-      default:
-        return filteredModels.sort((a, b) => a.name.localeCompare(b.name))
-    }
+    return filteredModels.sort((a, b) => {
+      switch (sortBy) {
+        case "price-asc":
+          return a.finalPrice - b.finalPrice
+        case "price-desc":
+          return b.finalPrice - a.finalPrice
+        case "name-desc":
+          return b.name.toLowerCase().localeCompare(a.name.toLowerCase())
+        case "rating":
+          return (b.rating || 0) - (a.rating || 0)
+        default: // name-asc
+          return a.name.toLowerCase().localeCompare(b.name.toLowerCase())
+      }
+    })
+  }
+
+  const handleClearFilters = () => {
+    setSearchTerm("")
+    setSortBy("name-asc")
+    setPriceRange({ min: "", max: "" })
   }
 
   const handleModelSelect = (model: LehengaModel) => {
@@ -687,64 +698,17 @@ export default function CustomLehengaDesignPage() {
               <p className="text-gray-600">Choose from our beautiful lehenga designs</p>
             </div>
 
-            {/* Search and Filter Controls */}
-            <div className="max-w-4xl mx-auto">
-              <Card className="p-4">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  {/* Search */}
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                    <Input
-                      placeholder="Search models..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10"
-                    />
-                  </div>
-                  
-                  {/* Sort */}
-                  <Select value={sortBy} onValueChange={(value: "name" | "price-low" | "price-high") => setSortBy(value)}>
-                    <SelectTrigger>
-                      <SlidersHorizontal className="h-4 w-4 mr-2" />
-                      <SelectValue placeholder="Sort by" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="name">Name A-Z</SelectItem>
-                      <SelectItem value="price-low">Price: Low to High</SelectItem>
-                      <SelectItem value="price-high">Price: High to Low</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  
-                  {/* Price Range */}
-                  <div className="flex space-x-2">
-                    <Input
-                      type="number"
-                      placeholder="Min price"
-                      value={priceRange.min}
-                      onChange={(e) => setPriceRange(prev => ({ ...prev, min: e.target.value }))}
-                    />
-                    <Input
-                      type="number"
-                      placeholder="Max price"
-                      value={priceRange.max}
-                      onChange={(e) => setPriceRange(prev => ({ ...prev, max: e.target.value }))}
-                    />
-                  </div>
-                  
-                  {/* Clear Filters */}
-                  <Button 
-                    variant="outline" 
-                    onClick={() => {
-                      setSearchTerm("")
-                      setSortBy("name")
-                      setPriceRange({ min: "", max: "" })
-                    }}
-                  >
-                    <Filter className="h-4 w-4 mr-2" />
-                    Clear
-                  </Button>
-                </div>
-              </Card>
+            {/* Filter Bar */}
+            <div className="max-w-6xl mx-auto mb-6">
+              <ModelFilterBar
+                searchTerm={searchTerm}
+                onSearchChange={setSearchTerm}
+                sortBy={sortBy}
+                onSortChange={setSortBy}
+                priceRange={priceRange}
+                onPriceRangeChange={setPriceRange}
+                onClearFilters={handleClearFilters}
+              />
             </div>
 
             <div className="space-y-6">
@@ -767,6 +731,13 @@ export default function CustomLehengaDesignPage() {
                       <Search className="h-16 w-16 text-gray-400 mx-auto mb-4" />
                       <h3 className="text-lg font-medium text-gray-900 mb-2">No models match your criteria</h3>
                       <p className="text-gray-600">Try adjusting your search or filter settings.</p>
+                      <Button 
+                        variant="outline" 
+                        onClick={handleClearFilters}
+                        className="mt-4"
+                      >
+                        Clear All Filters
+                      </Button>
                     </div>
                   )
                 }

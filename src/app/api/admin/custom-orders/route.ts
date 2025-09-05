@@ -58,23 +58,67 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: "desc" }
     })
 
-    // Fetch measurements for each order's user
+    // Fetch measurements for each order's user (all types)
     const ordersWithMeasurements = await Promise.all(
       orders.map(async (order) => {
-        const measurements = await db.measurement.findMany({
-          where: { userId: order.userId },
-          orderBy: { createdAt: 'desc' },
-          take: 1
-        })
+        // Determine order type from appointment purpose or design details
+        const orderType = order.appointmentPurpose || 
+                         (order.frontDesign?.toLowerCase().includes('lehenga') ? 'lehenga' :
+                          order.frontDesign?.toLowerCase().includes('salwar') ? 'salwar-kameez' : 'blouse')
         
-        // Log measurement lookup misses for auditing
-        if (!measurements[0]) {
-          console.log(`📋 Measurement lookup miss - Order: ${order.id}, User: ${order.user?.email}, Status: Pending`)
+        let measurements = null
+        
+        // Fetch appropriate measurements based on order type
+        if (orderType === 'lehenga') {
+          const lehengaMeasurements = await db.lehengaMeasurement.findMany({
+            where: { 
+              OR: [
+                { customOrderId: order.id },
+                { userId: order.userId }
+              ]
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 1
+          })
+          measurements = lehengaMeasurements[0] || null
+        } else if (orderType === 'salwar-kameez') {
+          const salwarMeasurements = await db.salwarMeasurement.findMany({
+            where: { 
+              OR: [
+                { customOrderId: order.id },
+                { userId: order.userId }
+              ]
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 1
+          })
+          measurements = salwarMeasurements[0] || null
+        } else {
+          // Default to blouse measurements
+          const blouseMeasurements = await db.measurement.findMany({
+            where: { 
+              OR: [
+                { customOrderId: order.id },
+                { userId: order.userId }
+              ]
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 1
+          })
+          measurements = blouseMeasurements[0] || null
+        }
+        
+        // Log measurement lookup for auditing
+        if (!measurements) {
+          console.log(`📋 Measurement lookup miss - Order: ${order.id}, Type: ${orderType}, User: ${order.user?.email}, Status: Pending`)
+        } else {
+          console.log(`✅ Measurement found - Order: ${order.id}, Type: ${orderType}, User: ${order.user?.email}`)
         }
         
         return {
           ...order,
-          userMeasurements: measurements[0] || null
+          orderType,
+          userMeasurements: measurements
         }
       })
     )

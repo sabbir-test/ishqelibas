@@ -7,8 +7,7 @@ export async function GET(request: NextRequest) {
     const minPrice = searchParams.get("minPrice")
     const maxPrice = searchParams.get("maxPrice")
     const search = searchParams.get("search")
-    const sortBy = searchParams.get("sortBy") || "name" // "name" or "price"
-    const sortOrder = searchParams.get("sortOrder") || "asc" // "asc" or "desc"
+    const sortBy = searchParams.get("sortBy") || "name-asc" // "name-asc", "name-desc", "price-asc", "price-desc", "rating"
     const page = parseInt(searchParams.get("page") || "1")
     const limit = parseInt(searchParams.get("limit") || "50")
 
@@ -36,10 +35,21 @@ export async function GET(request: NextRequest) {
 
     // Build order clause for sorting
     let orderBy: any = {}
-    if (sortBy === "price") {
-      orderBy.price = sortOrder
-    } else {
-      orderBy.name = sortOrder
+    switch (sortBy) {
+      case "price-asc":
+        orderBy.finalPrice = "asc"
+        break
+      case "price-desc":
+        orderBy.finalPrice = "desc"
+        break
+      case "name-desc":
+        orderBy.name = "desc"
+        break
+      case "rating":
+        orderBy.rating = "desc"
+        break
+      default: // name-asc
+        orderBy.name = "asc"
     }
 
     const skip = (page - 1) * limit

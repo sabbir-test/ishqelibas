@@ -11,6 +11,7 @@ import { Progress } from "@/components/ui/progress"
 import { Separator } from "@/components/ui/separator"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { ModelFilterBar } from "@/components/ui/model-filter-bar"
 import { 
   ArrowLeft, 
   ArrowRight, 
@@ -170,8 +171,7 @@ export default function CustomBlouseDesignPage() {
   const [manualMeasurementsEnabled, setManualMeasurementsEnabled] = useState(true)
   const [isLoadingConfig, setIsLoadingConfig] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
-  const [sortBy, setSortBy] = useState("name")
-  const [sortOrder, setSortOrder] = useState("asc")
+  const [sortBy, setSortBy] = useState("name-asc")
   const [selectedModelForPreview, setSelectedModelForPreview] = useState<BlouseModel | null>(null)
   const [isPreviewOpen, setIsPreviewOpen] = useState(false)
   const [priceRange, setPriceRange] = useState({ min: "", max: "" })
@@ -415,16 +415,25 @@ export default function CustomBlouseDesignPage() {
     })
 
     return filtered.sort((a, b) => {
-      if (sortBy === "price") {
-        const aPrice = a.finalPrice
-        const bPrice = b.finalPrice
-        return sortOrder === "asc" ? aPrice - bPrice : bPrice - aPrice
-      } else {
-        const aName = a.name.toLowerCase()
-        const bName = b.name.toLowerCase()
-        return sortOrder === "asc" ? aName.localeCompare(bName) : bName.localeCompare(aName)
+      switch (sortBy) {
+        case "price-asc":
+          return a.finalPrice - b.finalPrice
+        case "price-desc":
+          return b.finalPrice - a.finalPrice
+        case "name-desc":
+          return b.name.toLowerCase().localeCompare(a.name.toLowerCase())
+        case "rating":
+          return (b.rating || 0) - (a.rating || 0)
+        default: // name-asc
+          return a.name.toLowerCase().localeCompare(b.name.toLowerCase())
       }
     })
+  }
+
+  const handleClearFilters = () => {
+    setSearchTerm("")
+    setSortBy("name-asc")
+    setPriceRange({ min: "", max: "" })
   }
 
   const handleModelPreview = (model: BlouseModel) => {
@@ -804,74 +813,17 @@ export default function CustomBlouseDesignPage() {
               <p className="text-gray-600">Explore our collection and select your perfect design</p>
             </div>
 
-            {/* Search, Filter and Sort Controls */}
-            <div className="max-w-6xl mx-auto">
-              <div className="space-y-4 mb-6">
-                {/* Search Bar */}
-                <div className="flex-1 relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <Input
-                    placeholder="Search models by name or design..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-                
-                {/* Filters and Sort */}
-                <div className="flex flex-col sm:flex-row gap-4">
-                  {/* Price Range Filter */}
-                  <div className="flex items-center gap-2">
-                    <Label className="text-sm font-medium whitespace-nowrap">Price Range:</Label>
-                    <Input
-                      type="number"
-                      placeholder="Min"
-                      value={priceRange.min}
-                      onChange={(e) => setPriceRange(prev => ({ ...prev, min: e.target.value }))}
-                      className="w-20"
-                    />
-                    <span className="text-gray-500">-</span>
-                    <Input
-                      type="number"
-                      placeholder="Max"
-                      value={priceRange.max}
-                      onChange={(e) => setPriceRange(prev => ({ ...prev, max: e.target.value }))}
-                      className="w-20"
-                    />
-                    {(priceRange.min || priceRange.max) && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setPriceRange({ min: "", max: "" })}
-                        className="text-xs"
-                      >
-                        Clear
-                      </Button>
-                    )}
-                  </div>
-                  
-                  {/* Sort Controls */}
-                  <div className="flex gap-2 ml-auto">
-                    <Select value={sortBy} onValueChange={setSortBy}>
-                      <SelectTrigger className="w-32">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="name">Name</SelectItem>
-                        <SelectItem value="price">Price</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
-                      title={`Sort ${sortOrder === "asc" ? "Descending" : "Ascending"}`}
-                    >
-                      {sortOrder === "asc" ? <SortAsc className="h-4 w-4" /> : <SortDesc className="h-4 w-4" />}
-                    </Button>
-                  </div>
-                </div>
-              </div>
+            {/* Filter Bar */}
+            <div className="max-w-6xl mx-auto mb-6">
+              <ModelFilterBar
+                searchTerm={searchTerm}
+                onSearchChange={setSearchTerm}
+                sortBy={sortBy}
+                onSortChange={setSortBy}
+                priceRange={priceRange}
+                onPriceRangeChange={setPriceRange}
+                onClearFilters={handleClearFilters}
+              />
             </div>
 
             {/* Models Gallery */}
@@ -977,10 +929,7 @@ export default function CustomBlouseDesignPage() {
                   <p className="text-gray-600">Try adjusting your search terms or price range.</p>
                   <Button 
                     variant="outline" 
-                    onClick={() => {
-                      setSearchTerm("")
-                      setPriceRange({ min: "", max: "" })
-                    }} 
+                    onClick={handleClearFilters}
                     className="mt-4"
                   >
                     Clear All Filters
