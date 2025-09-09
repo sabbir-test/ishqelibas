@@ -23,6 +23,7 @@ interface BlouseModel {
   finalPrice: number
   stitchCost: number
   image?: string
+  images?: string
   isActive: boolean
   createdAt: string
   updatedAt: string
@@ -42,6 +43,7 @@ export default function BlouseModelsPage() {
     discount: "",
     stitchCost: "",
     image: "",
+    images: "",
     isActive: true
   })
 
@@ -127,6 +129,7 @@ export default function BlouseModelsPage() {
 
   const handleEdit = (model: BlouseModel) => {
     setEditingModel(model)
+    const existingImages = model.images ? JSON.parse(model.images) : []
     setFormData({
       name: model.name,
       designName: model.designName,
@@ -135,6 +138,7 @@ export default function BlouseModelsPage() {
       discount: model.discount?.toString() || "",
       stitchCost: model.stitchCost.toString(),
       image: model.image || "",
+      images: existingImages.join('\n'),
       isActive: model.isActive
     })
     setIsDialogOpen(true)
@@ -179,6 +183,7 @@ export default function BlouseModelsPage() {
       discount: "",
       stitchCost: "",
       image: "",
+      images: "",
       isActive: true
     })
     setEditingModel(null)
@@ -299,13 +304,24 @@ export default function BlouseModelsPage() {
                       />
                     </div>
                     <div>
-                      <Label htmlFor="image">Image URL</Label>
+                      <Label htmlFor="image">Primary Image URL</Label>
                       <Input
                         id="image"
                         value={formData.image}
                         onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                        placeholder="Enter image URL"
+                        placeholder="Enter primary image URL"
                       />
+                    </div>
+                    <div>
+                      <Label htmlFor="images">Additional Images</Label>
+                      <Textarea
+                        id="images"
+                        value={formData.images}
+                        onChange={(e) => setFormData({ ...formData, images: e.target.value })}
+                        placeholder="Enter additional image URLs (one per line)&#10;assets/blouse/hpc/01-2.png&#10;assets/blouse/hpc/01-back.png"
+                        rows={3}
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Enter one image path per line for multiple images</p>
                     </div>
                     <div className="flex items-center space-x-2">
                       <Switch

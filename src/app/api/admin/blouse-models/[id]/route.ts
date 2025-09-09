@@ -72,11 +72,23 @@ export async function PUT(
       return NextResponse.json({ error: "Admin access required" }, { status: 403 })
     }
 
-    const { name, designName, description, price, discount, stitchCost, image, isActive } = await request.json()
+    const { name, designName, description, price, discount, stitchCost, image, images, isActive } = await request.json()
 
     // Validate required fields
     if (!name || !designName || !price || stitchCost === undefined) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
+    }
+
+    // Process multiple images
+    let processedImages = null
+    if (images && images.trim()) {
+      const imageArray = images.split('\n')
+        .map((img: string) => img.trim())
+        .filter((img: string) => img.length > 0)
+      
+      if (imageArray.length > 0) {
+        processedImages = JSON.stringify(imageArray)
+      }
     }
 
     // Calculate final price
@@ -93,6 +105,7 @@ export async function PUT(
         finalPrice,
         stitchCost: parseFloat(stitchCost),
         image,
+        images: processedImages,
         isActive: isActive !== undefined ? isActive : true
       }
     })

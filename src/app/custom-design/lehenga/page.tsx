@@ -11,6 +11,8 @@ import { Progress } from "@/components/ui/progress"
 import { Separator } from "@/components/ui/separator"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ModelFilterBar } from "@/components/ui/model-filter-bar"
+import { ProductCard } from "@/components/ui/product-card"
+import { ProductDetailModal } from "@/components/ui/product-detail-modal"
 import { 
   ArrowLeft, 
   ArrowRight, 
@@ -123,6 +125,8 @@ export default function CustomLehengaDesignPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [sortBy, setSortBy] = useState("name-asc")
   const [priceRange, setPriceRange] = useState({ min: "", max: "" })
+  const [selectedModelForDetail, setSelectedModelForDetail] = useState<LehengaModel | null>(null)
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
   
   const { addItem } = useCart()
   const { toast } = useToast()
@@ -288,6 +292,39 @@ export default function CustomLehengaDesignPage() {
     setSearchTerm("")
     setSortBy("name-asc")
     setPriceRange({ min: "", max: "" })
+  }
+
+  const handleCardClick = (model: LehengaModel) => {
+    setSelectedModelForDetail(model)
+    setIsDetailModalOpen(true)
+  }
+
+  const handleAddToCartFromModal = (model: LehengaModel, options: any) => {
+    const customOrder = {
+      productId: "custom-lehenga",
+      name: `Custom Lehenga - ${model.name}`,
+      price: model.finalPrice,
+      finalPrice: model.finalPrice,
+      quantity: 1,
+      image: model.image || "/api/placeholder/200/200",
+      sku: `CUSTOM-LH-${Date.now()}`,
+      customDesign: {
+        selectedModel: model,
+        options,
+        fabric: design.fabric,
+        measurements: design.measurements,
+        appointmentDate: design.appointmentDate,
+        appointmentType: design.appointmentType,
+        appointmentPurpose: "lehenga"
+      }
+    }
+
+    addItem(customOrder)
+    setIsDetailModalOpen(false)
+    toast({
+      title: "Added to cart",
+      description: "Your custom lehenga design has been added to cart.",
+    })
   }
 
   const handleModelSelect = (model: LehengaModel) => {
@@ -749,78 +786,27 @@ export default function CustomLehengaDesignPage() {
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                       {filteredModels.map((model) => {
-                    const isSelected = design.selectedModel?.id === model.id
+                        const productModel = {
+                          id: model.id,
+                          name: model.name,
+                          image: model.image,
+                          price: model.price,
+                          discount: model.discount,
+                          finalPrice: model.finalPrice,
+                          rating: model.rating,
+                          reviewCount: model.reviewCount,
+                          fabric: "Silk",
+                          category: "lehenga" as const
+                        }
 
-                    return (
-                      <Card key={model.id} className={`overflow-hidden hover:shadow-lg transition-shadow duration-200 cursor-pointer ${
-                        isSelected ? "ring-2 ring-orange-600 bg-orange-50" : ""
-                      }`} onClick={() => handleModelSelect(model)}>
-                        <CardHeader className="pb-3">
-                          <div className="relative">
-                            {model.image ? (
-                              <div className="w-full h-48 bg-gray-100 rounded-lg overflow-hidden">
-                                <img
-                                  src={model.image}
-                                  alt={model.name}
-                                  className="w-full h-full object-cover"
-                                />
-                              </div>
-                            ) : (
-                              <div className="w-full h-48 bg-gradient-to-br from-orange-100 to-pink-100 rounded-lg flex items-center justify-center">
-                                <Package className="h-12 w-12 text-orange-400" />
-                              </div>
-                            )}
-                            
-                            {isSelected && (
-                              <div className="absolute top-2 right-2">
-                                <Badge className="bg-green-500 text-white">
-                                  Selected
-                                </Badge>
-                              </div>
-                            )}
-
-                            {model.discount && (
-                              <Badge className="absolute top-2 left-2 bg-red-500 text-white">
-                                {model.discount}% OFF
-                              </Badge>
-                            )}
-                          </div>
-                        </CardHeader>
-
-                        <CardContent className="space-y-3">
-                          <div>
-                            <CardTitle className="text-lg mb-1">{model.name}</CardTitle>
-                            <p className="text-sm text-orange-600 font-medium">{model.designName}</p>
-                            {model.description && (
-                              <p className="text-sm text-gray-600 line-clamp-2 mt-1">{model.description}</p>
-                            )}
-                          </div>
-
-                          <div className="flex items-center justify-between">
-                            <div>
-                              {model.discount ? (
-                                <div className="flex items-center gap-2">
-                                  <span className="text-lg font-bold text-orange-600">
-                                    {formatPrice(model.finalPrice)}
-                                  </span>
-                                  <span className="text-sm text-gray-500 line-through">
-                                    {formatPrice(model.price)}
-                                  </span>
-                                </div>
-                              ) : (
-                                <span className="text-lg font-bold text-orange-600">
-                                  {formatPrice(model.finalPrice)}
-                                </span>
-                              )}
-                            </div>
-                            {isSelected && (
-                              <CheckCircle className="h-5 w-5 text-green-600" />
-                            )}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    )
-                  })}
+                        return (
+                          <ProductCard
+                            key={model.id}
+                            model={productModel}
+                            onCardClick={handleCardClick}
+                          />
+                        )
+                      })}
                     </div>
                   </>
                 )
@@ -847,6 +833,29 @@ export default function CustomLehengaDesignPage() {
                 <ArrowRight className="h-4 w-4 ml-2" />
               </Button>
             </div>
+
+            {/* Product Detail Modal */}
+            <ProductDetailModal
+              model={selectedModelForDetail ? {
+                id: selectedModelForDetail.id,
+                name: selectedModelForDetail.name,
+                image: selectedModelForDetail.image,
+                price: selectedModelForDetail.price,
+                discount: selectedModelForDetail.discount,
+                finalPrice: selectedModelForDetail.finalPrice,
+                rating: selectedModelForDetail.rating,
+                reviewCount: selectedModelForDetail.reviewCount,
+                fabric: "Silk",
+                category: "lehenga" as const
+              } : null}
+              isOpen={isDetailModalOpen}
+              onClose={() => setIsDetailModalOpen(false)}
+              onSelectModel={(model) => {
+                handleModelSelect(selectedModelForDetail!)
+                setIsDetailModalOpen(false)
+                setCurrentStep("measurements")
+              }}
+            />
           </div>
         )}
 

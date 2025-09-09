@@ -147,36 +147,73 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   // Load cart from localStorage on mount
   useEffect(() => {
-    const savedCart = localStorage.getItem("ishqelibas-cart")
-    if (savedCart) {
+    const loadCart = async () => {
       try {
+        // Check if localStorage is available
+        if (typeof window === 'undefined' || !window.localStorage) {
+          return
+        }
+        
+        const savedCart = localStorage.getItem("ishqelibas-cart")
+        if (!savedCart || !savedCart.trim()) {
+          return
+        }
+        
         const parsedCart = JSON.parse(savedCart)
+        
+        // Ensure parsedCart is an array
+        if (!Array.isArray(parsedCart)) {
+          throw new Error('Cart data is not an array')
+        }
+        
         // Validate and sanitize cart items
-        const sanitizedCart = parsedCart.map((item: any) => ({
-          id: item.id || `cart-${Date.now()}-${Math.random()}`,
-          productId: item.productId || '',
-          name: item.name || 'Unknown Product',
-          price: typeof item.price === 'number' ? item.price : 0,
-          finalPrice: typeof item.finalPrice === 'number' ? item.finalPrice : 0,
-          quantity: typeof item.quantity === 'number' ? item.quantity : 1,
-          image: item.image || '/api/placeholder/300/400',
-          sku: item.sku || 'UNKNOWN-SKU',
-          size: item.size || undefined,
-          color: item.color || undefined,
-          customDesign: item.customDesign || undefined
-        }))
-        dispatch({ type: "LOAD_CART", payload: sanitizedCart })
+        const sanitizedCart = parsedCart
+          .filter(item => item && typeof item === 'object' && item.name) // Filter out null/invalid items
+          .map((item: any) => ({
+            id: item.id || `cart-${Date.now()}-${Math.random()}`,
+            productId: item.productId || '',
+            name: item.name || 'Unknown Product',
+            price: typeof item.price === 'number' && !isNaN(item.price) ? Math.max(0, item.price) : 0,
+            finalPrice: typeof item.finalPrice === 'number' && !isNaN(item.finalPrice) ? Math.max(0, item.finalPrice) : 0,
+            quantity: typeof item.quantity === 'number' && !isNaN(item.quantity) ? Math.max(1, item.quantity) : 1,
+            image: item.image || '/api/placeholder/300/400',
+            sku: item.sku || 'UNKNOWN-SKU',
+            size: item.size || undefined,
+            color: item.color || undefined,
+            customDesign: item.customDesign || undefined
+          }))
+        
+        if (sanitizedCart.length > 0) {
+          // Use setTimeout to prevent potential render loop
+          setTimeout(() => {
+            dispatch({ type: "LOAD_CART", payload: sanitizedCart })
+          }, 0)
+        }
       } catch (error) {
         console.error("Failed to load cart from localStorage:", error)
-        // Clear corrupted cart data
-        localStorage.removeItem("ishqelibas-cart")
+        // Clear corrupted cart data silently
+        try {
+          if (typeof window !== 'undefined' && window.localStorage) {
+            localStorage.removeItem("ishqelibas-cart")
+          }
+        } catch (storageError) {
+          console.error("Failed to clear corrupted cart:", storageError)
+        }
       }
     }
-  }, [])
+    
+    loadCart()
+  }, []) // Empty dependency array to run only once
 
   // Save cart to localStorage whenever it changes
   useEffect(() => {
-    localStorage.setItem("ishqelibas-cart", JSON.stringify(state.items))
+    try {
+      if (state.items && Array.isArray(state.items) && typeof window !== 'undefined') {
+        localStorage.setItem("ishqelibas-cart", JSON.stringify(state.items))
+      }
+    } catch (error) {
+      console.error("Failed to save cart to localStorage:", error)
+    }
   }, [state.items])
 
   const addItem = (item: Omit<CartItem, "id">) => {

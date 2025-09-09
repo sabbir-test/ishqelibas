@@ -12,7 +12,8 @@ import {
   Minus, 
   Trash2,
   Heart,
-  ArrowRight
+  ArrowRight,
+  AlertCircle
 } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
@@ -21,16 +22,17 @@ export default function CartDrawer() {
   const { state, removeItem, updateQuantity, clearCart, toggleCart } = useCart()
 
   const formatPrice = (price: number | undefined) => {
-    if (typeof price !== 'number' || isNaN(price)) {
+    if (typeof price !== 'number' || isNaN(price) || price < 0) {
       return '₹0'
     }
-    return `₹${price.toLocaleString()}`
+    return `₹${Math.round(price).toLocaleString()}`
   }
 
-  if (!state.isOpen) return null
+  if (!state || !state.isOpen) return null
 
-  return (
-    <div className="fixed inset-0 z-50">
+  try {
+    return (
+      <div className="fixed inset-0 z-50">
       {/* Backdrop */}
       <div 
         className="absolute inset-0 bg-black bg-opacity-50"
@@ -54,7 +56,7 @@ export default function CartDrawer() {
 
           {/* Cart Items */}
           <div className="flex-1 overflow-y-auto p-4">
-            {state.items.length === 0 ? (
+            {!state.items || state.items.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-gray-500">
                 <ShoppingCart className="h-16 w-16 mb-4" />
                 <p className="text-lg mb-4">Your cart is empty</p>
@@ -64,85 +66,36 @@ export default function CartDrawer() {
               </div>
             ) : (
               <div className="space-y-4">
-                {state.items.map((item) => (
+                {(state.items || []).filter(item => item && item.id && item.name).map((item) => (
                   <Card key={item.id} className="overflow-hidden">
                     <CardContent className="p-4">
                       <div className="flex gap-4">
                         {/* Product Image */}
-                        <div className="relative w-20 h-20 flex-shrink-0">
-                          <Image
-                            src={item.image}
-                            alt={item.name}
-                            fill
-                            className="object-cover rounded-md"
-                          />
+                        <div className="relative w-20 h-20 flex-shrink-0 bg-gray-100 rounded-md">
+                          {item.image ? (
+                            <Image
+                              src={item.image}
+                              alt={item.name || 'Product'}
+                              fill
+                              className="object-cover rounded-md"
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement
+                                target.src = '/api/placeholder/80/80'
+                              }}
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <AlertCircle className="h-8 w-8 text-gray-400" />
+                            </div>
+                          )}
                         </div>
 
                         {/* Product Details */}
                         <div className="flex-1 min-w-0">
                           <h3 className="font-medium text-sm line-clamp-2 mb-1">
-                            {item.name}
+                            {item.name || 'Unknown Product'}
                           </h3>
-                          <p className="text-xs text-gray-500 mb-2">SKU: {item.sku}</p>
-                          
-                          {/* Size and Color */}
-                          {(item.size || item.color) && (
-                            <div className="mb-2">
-                              {item.size && (
-                                <div className="text-xs text-gray-600 mb-1">
-                                  Size: <span className="font-medium">{item.size}</span>
-                                </div>
-                              )}
-                              {item.color && (
-                                <div className="flex items-center gap-1">
-                                  <span className="text-xs text-gray-600">Color:</span>
-                                  <div
-                                    className="w-3 h-3 rounded-full border border-gray-300"
-                                    style={{ backgroundColor: item.color }}
-                                    title={item.color}
-                                  />
-                                  <span className="text-xs font-medium capitalize">{item.color}</span>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                          
-                          {/* Custom Design Details */}
-                          {item.productId === "custom-blouse" && item.customDesign && (
-                            <div className="mb-2 p-2 bg-gray-50 rounded-md">
-                              <div className="text-xs font-medium text-gray-700 mb-1">Custom Design Details:</div>
-                              {item.customDesign.fabric && (
-                                <div className="text-xs text-gray-600 mb-1">
-                                  Fabric: <span className="font-medium">{item.customDesign.fabric.name}</span>
-                                </div>
-                              )}
-                              {item.customDesign.frontDesign && (
-                                <div className="text-xs text-gray-600 mb-1">
-                                  Front Design: <span className="font-medium">{item.customDesign.frontDesign.name}</span>
-                                </div>
-                              )}
-                              {item.customDesign.backDesign && (
-                                <div className="text-xs text-gray-600 mb-1">
-                                  Back Design: <span className="font-medium">{item.customDesign.backDesign.name}</span>
-                                </div>
-                              )}
-                              {item.customDesign.selectedModels?.frontModel && (
-                                <div className="text-xs text-gray-600 mb-1">
-                                  Front Model: <span className="font-medium">{item.customDesign.selectedModels.frontModel.name}</span>
-                                </div>
-                              )}
-                              {item.customDesign.selectedModels?.backModel && (
-                                <div className="text-xs text-gray-600 mb-1">
-                                  Back Model: <span className="font-medium">{item.customDesign.selectedModels.backModel.name}</span>
-                                </div>
-                              )}
-                              {item.customDesign.ownFabricDetails && item.customDesign.ownFabricDetails.name && (
-                                <div className="text-xs text-gray-600 mb-1">
-                                  Customer's Fabric: <span className="font-medium">{item.customDesign.ownFabricDetails.name}</span>
-                                </div>
-                              )}
-                            </div>
-                          )}
+                          <p className="text-xs text-gray-500 mb-2">SKU: {item.sku || 'N/A'}</p>
                           
                           {/* Price */}
                           <div className="flex items-center gap-2 mb-3">
@@ -163,18 +116,18 @@ export default function CartDrawer() {
                                 variant="outline"
                                 size="icon"
                                 className="h-8 w-8"
-                                onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                                onClick={() => updateQuantity(item.id, Math.max(0, (item.quantity || 1) - 1))}
                               >
                                 <Minus className="h-4 w-4" />
                               </Button>
                               <span className="w-8 text-center text-sm font-medium">
-                                {item.quantity}
+                                {Math.max(1, item.quantity || 1)}
                               </span>
                               <Button
                                 variant="outline"
                                 size="icon"
                                 className="h-8 w-8"
-                                onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                                onClick={() => updateQuantity(item.id, (item.quantity || 1) + 1)}
                               >
                                 <Plus className="h-4 w-4" />
                               </Button>
@@ -193,6 +146,7 @@ export default function CartDrawer() {
                                 variant="ghost"
                                 size="icon"
                                 className="h-8 w-8 text-pink-500 hover:text-pink-700"
+                                title="Add to Wishlist"
                               >
                                 <Heart className="h-4 w-4" />
                               </Button>
@@ -219,7 +173,7 @@ export default function CartDrawer() {
           </div>
 
           {/* Cart Footer */}
-          {state.items.length > 0 && (
+          {state.items && state.items.length > 0 && (
             <div className="border-t p-4 space-y-4">
               {/* Clear Cart Button */}
               <div className="flex justify-end">
@@ -282,6 +236,26 @@ export default function CartDrawer() {
           )}
         </div>
       </div>
-    </div>
-  )
+      </div>
+    )
+  } catch (error) {
+    console.error('CartDrawer error:', error)
+    return (
+      <div className="fixed inset-0 z-50">
+        <div className="absolute inset-0 bg-black bg-opacity-50" onClick={toggleCart} />
+        <div className="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-xl p-4">
+          <div className="text-center">
+            <h3 className="text-lg font-semibold mb-2">Cart Error</h3>
+            <p className="text-gray-600 mb-4">Unable to load cart. Please try again.</p>
+            <button 
+              onClick={() => window.location.reload()} 
+              className="bg-pink-600 text-white px-4 py-2 rounded"
+            >
+              Refresh Page
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
 }

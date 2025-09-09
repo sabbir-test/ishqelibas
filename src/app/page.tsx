@@ -5,6 +5,7 @@ import AboutUs from "@/components/sections/AboutUs"
 import CustomerReviews from "@/components/sections/CustomerReviews"
 import PromotionalBanner from "@/components/sections/PromotionalBanner"
 import ContactSection from "@/components/sections/ContactSection"
+import AddToCartTest from "@/components/test/AddToCartTest"
 
 export default function Home() {
   return (
@@ -16,6 +17,7 @@ export default function Home() {
       <CustomerReviews />
       <PromotionalBanner />
       <ContactSection />
+      <AddToCartTest />
     </div>
   )
 }

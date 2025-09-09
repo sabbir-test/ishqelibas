@@ -12,6 +12,8 @@ import { Separator } from "@/components/ui/separator"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ModelFilterBar } from "@/components/ui/model-filter-bar"
+import { ProductCard } from "@/components/ui/product-card"
+import { ProductDetailModal } from "@/components/ui/product-detail-modal"
 import { 
   ArrowLeft, 
   ArrowRight, 
@@ -96,11 +98,15 @@ interface BlouseDesign {
 interface BlouseModel {
   id: string
   name: string
+  designName?: string
   image?: string
+  images?: string
   description?: string
   price: number
   discount?: number
   finalPrice: number
+  rating?: number
+  reviewCount?: number
   isActive: boolean
   createdAt: string
   updatedAt: string
@@ -174,6 +180,7 @@ export default function CustomBlouseDesignPage() {
   const [sortBy, setSortBy] = useState("name-asc")
   const [selectedModelForPreview, setSelectedModelForPreview] = useState<BlouseModel | null>(null)
   const [isPreviewOpen, setIsPreviewOpen] = useState(false)
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
   const [priceRange, setPriceRange] = useState({ min: "", max: "" })
   
   const { addItem } = useCart()
@@ -439,6 +446,40 @@ export default function CustomBlouseDesignPage() {
   const handleModelPreview = (model: BlouseModel) => {
     setSelectedModelForPreview(model)
     setIsPreviewOpen(true)
+  }
+
+  const handleCardClick = (model: BlouseModel) => {
+    setSelectedModelForPreview(model)
+    setIsDetailModalOpen(true)
+  }
+
+  const handleAddToCartFromModal = (model: BlouseModel, options: any) => {
+    // Convert model to cart item with selected options
+    const customOrder = {
+      productId: "custom-blouse",
+      name: `Custom Blouse - ${model.name}`,
+      price: model.finalPrice,
+      finalPrice: model.finalPrice,
+      quantity: 1,
+      image: model.image || "/api/placeholder/200/200",
+      sku: `CUSTOM-${Date.now()}`,
+      customDesign: {
+        selectedModel: model,
+        options,
+        fabric: design.fabric,
+        measurements: design.measurements,
+        appointmentDate: design.appointmentDate,
+        appointmentType: design.appointmentType,
+        appointmentPurpose: "blouse"
+      }
+    }
+
+    addItem(customOrder)
+    setIsDetailModalOpen(false)
+    toast({
+      title: "Added to cart",
+      description: "Your custom blouse design has been added to cart.",
+    })
   }
 
   const handleAddToCart = async () => {
@@ -837,86 +878,26 @@ export default function CustomBlouseDesignPage() {
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                   {filteredAndSortedModels().map((model) => {
-                    const isSelected = design.selectedModels.frontModel?.id === model.id
+                    const productModel = {
+                      id: model.id,
+                      name: model.name,
+                      image: model.image,
+                      images: model.images,
+                      price: model.price,
+                      discount: model.discount,
+                      finalPrice: model.finalPrice,
+                      rating: model.rating,
+                      reviewCount: model.reviewCount,
+                      fabric: "Silk",
+                      category: "blouse" as const
+                    }
 
                     return (
-                      <Card 
-                        key={model.id} 
-                        className={`overflow-hidden hover:shadow-lg transition-all duration-200 cursor-pointer group ${
-                          isSelected ? "ring-2 ring-pink-500 shadow-lg" : ""
-                        }`}
-                        onClick={() => handleModelPreview(model)}
-                      >
-                        <div className="relative">
-                          {model.image ? (
-                            <div className="w-full h-56 bg-gray-100 overflow-hidden">
-                              <img
-                                src={model.image}
-                                alt={model.name}
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-                              />
-                            </div>
-                          ) : (
-                            <div className="w-full h-56 bg-gradient-to-br from-pink-100 to-purple-100 flex items-center justify-center">
-                              <ImageIcon className="h-16 w-16 text-pink-400" />
-                            </div>
-                          )}
-                          
-                          {/* Overlay with preview button */}
-                          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 flex items-center justify-center">
-                            <Button
-                              variant="secondary"
-                              size="sm"
-                              className="opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                            >
-                              <Eye className="h-4 w-4 mr-2" />
-                              View Details
-                            </Button>
-                          </div>
-
-                          {/* Badges */}
-                          <div className="absolute top-2 right-2 flex flex-col gap-1">
-                            {isSelected && (
-                              <Badge className="bg-pink-500 text-white">
-                                Selected
-                              </Badge>
-                            )}
-                            {model.discount && (
-                              <Badge className="bg-red-500 text-white">
-                                {model.discount}% OFF
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-
-                        <CardContent className="p-4">
-                          <div className="space-y-2">
-                            <h3 className="font-semibold text-lg leading-tight">{model.name}</h3>
-                            {model.designName && (
-                              <p className="text-sm text-gray-600">{model.designName}</p>
-                            )}
-                            
-                            <div className="flex items-center justify-between">
-                              <div>
-                                {model.discount ? (
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-lg font-bold text-pink-600">
-                                      {formatPrice(model.finalPrice)}
-                                    </span>
-                                    <span className="text-sm text-gray-500 line-through">
-                                      {formatPrice(model.price)}
-                                    </span>
-                                  </div>
-                                ) : (
-                                  <span className="text-lg font-bold text-pink-600">
-                                    {formatPrice(model.finalPrice)}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
+                      <ProductCard
+                        key={model.id}
+                        model={productModel}
+                        onCardClick={handleCardClick}
+                      />
                     )
                   })}
                 </div>
@@ -959,6 +940,30 @@ export default function CustomBlouseDesignPage() {
                 <ArrowRight className="h-4 w-4 ml-2" />
               </Button>
             </div>
+
+            {/* Product Detail Modal */}
+            <ProductDetailModal
+              model={selectedModelForPreview ? {
+                id: selectedModelForPreview.id,
+                name: selectedModelForPreview.name,
+                image: selectedModelForPreview.image,
+                images: selectedModelForPreview.images,
+                price: selectedModelForPreview.price,
+                discount: selectedModelForPreview.discount,
+                finalPrice: selectedModelForPreview.finalPrice,
+                rating: selectedModelForPreview.rating,
+                reviewCount: selectedModelForPreview.reviewCount,
+                fabric: "Silk",
+                category: "blouse" as const
+              } : null}
+              isOpen={isDetailModalOpen}
+              onClose={() => setIsDetailModalOpen(false)}
+              onSelectModel={(model) => {
+                handleModelSelect(selectedModelForPreview!)
+                setIsDetailModalOpen(false)
+                setCurrentStep("measurements")
+              }}
+            />
 
             {/* Model Preview Modal */}
             <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>

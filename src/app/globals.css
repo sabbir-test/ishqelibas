@@ -217,3 +217,16 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+/* Image zoom utilities */
+.scale-200 {
+  transform: scale(2);
+}
+
+.cursor-zoom-in {
+  cursor: zoom-in;
+}
+
+.cursor-zoom-out {
+  cursor: zoom-out;
+}

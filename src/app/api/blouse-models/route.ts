@@ -62,6 +62,7 @@ export async function GET(request: NextRequest) {
           name: true,
           designName: true,
           image: true,
+          images: true,
           description: true,
           price: true,
           discount: true,

@@ -27,6 +27,7 @@ import { useCart } from "@/contexts/CartContext"
 import { useAuth } from "@/contexts/AuthContext"
 import CartDrawer from "@/components/cart/CartDrawer"
 import AuthModal from "@/components/auth/AuthModal"
+import { ErrorBoundary } from "@/components/ui/error-boundary"
 
 export default function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false)
@@ -313,7 +314,9 @@ export default function Navbar() {
     </header>
     
     {/* Cart Drawer */}
-    <CartDrawer />
+    <ErrorBoundary>
+      <CartDrawer />
+    </ErrorBoundary>
     
       {/* Auth Modal */}
     <AuthModal 

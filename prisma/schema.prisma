@@ -276,6 +276,7 @@ model BlouseModel {
   name        String
   designName  String
   image       String?
+  images      String?  // JSON array of image paths
   description String?
   price       Float
   discount    Float?

@@ -197,6 +197,12 @@ export default function AdminDashboard() {
                   Appointments
                 </Button>
               </Link>
+              <Link href="/admin/images">
+                <Button variant="outline">
+                  <Package className="h-4 w-4 mr-2" />
+                  Image Manager
+                </Button>
+              </Link>
             </div>
           </div>
         </div>
