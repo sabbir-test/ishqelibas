@@ -32,9 +32,13 @@ interface DashboardStats {
   totalProducts: number
   totalCustomOrders: number
   pendingCustomOrders: number
+  inProductionOrders: number
+  readyOrders: number
+  deliveredOrders: number
   recentOrders: any[]
   topProducts: any[]
   lowStockProducts: any[]
+  recentCustomOrders: any[]
 }
 
 export default function AdminDashboard() {
@@ -45,9 +49,13 @@ export default function AdminDashboard() {
     totalProducts: 0,
     totalCustomOrders: 0,
     pendingCustomOrders: 0,
+    inProductionOrders: 0,
+    readyOrders: 0,
+    deliveredOrders: 0,
     recentOrders: [],
     topProducts: [],
-    lowStockProducts: []
+    lowStockProducts: [],
+    recentCustomOrders: []
   })
   const [isLoading, setIsLoading] = useState(true)
 
@@ -56,37 +64,45 @@ export default function AdminDashboard() {
       setIsLoading(true)
       try {
         // Fetch real dashboard data from API
-        const response = await fetch('/api/admin/dashboard', {
-          credentials: 'include'
-        })
+        const [dashboardResponse, customOrdersResponse] = await Promise.all([
+          fetch('/api/admin/dashboard', { credentials: 'include' }),
+          fetch('/api/admin/custom-orders', { credentials: 'include' })
+        ])
         
-        if (response.ok) {
-          const data = await response.json()
+        if (dashboardResponse.ok && customOrdersResponse.ok) {
+          const dashboardData = await dashboardResponse.json()
+          const customOrdersData = await customOrdersResponse.json()
           
-          // Fetch custom orders data
-          const customOrdersResponse = await fetch('/api/admin/custom-orders', {
-            credentials: 'include'
-          })
-          
-          let customOrdersData = { orders: [] }
-          if (customOrdersResponse.ok) {
-            customOrdersData = await customOrdersResponse.json()
-          }
-          
-          const totalCustomOrders = customOrdersData.orders?.length || 0
-          const pendingCustomOrders = customOrdersData.orders?.filter(order => order.status === 'PENDING').length || 0
+          // Calculate real-time custom order stats
+          const orders = customOrdersData.orders || []
+          const totalCustomOrders = orders.length
+          const pendingCustomOrders = orders.filter(order => 
+            order.status === 'PENDING' || order.status === 'CONFIRMED'
+          ).length
+          const inProductionOrders = orders.filter(order => 
+            order.status === 'IN_PRODUCTION'
+          ).length
+          const readyOrders = orders.filter(order => 
+            order.status === 'READY_FOR_DELIVERY'
+          ).length
+          const deliveredOrders = orders.filter(order => 
+            order.status === 'DELIVERED'
+          ).length
           
           setStats({
-            ...data,
+            ...dashboardData,
             totalCustomOrders,
-            pendingCustomOrders
+            pendingCustomOrders,
+            inProductionOrders,
+            readyOrders,
+            deliveredOrders,
+            recentCustomOrders: orders.slice(0, 5)
           })
         } else {
           throw new Error('Failed to fetch dashboard data')
         }
       } catch (error) {
         console.error("Error fetching dashboard data:", error)
-        // Fallback to empty data on error
         setStats({
           totalSales: 0,
           totalOrders: 0,
@@ -94,9 +110,13 @@ export default function AdminDashboard() {
           totalProducts: 0,
           totalCustomOrders: 0,
           pendingCustomOrders: 0,
+          inProductionOrders: 0,
+          readyOrders: 0,
+          deliveredOrders: 0,
           recentOrders: [],
           topProducts: [],
-          lowStockProducts: []
+          lowStockProducts: [],
+          recentCustomOrders: []
         })
       } finally {
         setIsLoading(false)
@@ -104,6 +124,11 @@ export default function AdminDashboard() {
     }
 
     fetchDashboardData()
+    
+    // Auto-refresh every 30 seconds for real-time updates
+    const interval = setInterval(fetchDashboardData, 30000)
+    
+    return () => clearInterval(interval)
   }, [])
 
   const formatPrice = (price: number) => {
@@ -438,7 +463,7 @@ export default function AdminDashboard() {
           </TabsContent>
 
           <TabsContent value="custom">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <Card>
                 <CardHeader>
                   <CardTitle>Custom Design Overview</CardTitle>
@@ -455,26 +480,74 @@ export default function AdminDashboard() {
                     </div>
                     <div className="flex justify-between items-center">
                       <span>In Production:</span>
-                      <span className="font-semibold text-blue-600">12</span>
+                      <span className="font-semibold text-blue-600">{stats.inProductionOrders || 0}</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span>Ready for Delivery:</span>
-                      <span className="font-semibold text-green-600">8</span>
+                      <span className="font-semibold text-green-600">{stats.readyOrders || 0}</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span>Delivered:</span>
-                      <span className="font-semibold text-green-600">17</span>
+                      <span className="font-semibold text-green-600">{stats.deliveredOrders || 0}</span>
                     </div>
                   </div>
                 </CardContent>
               </Card>
 
+              <Card className="lg:col-span-2">
+                <CardHeader>
+                  <CardTitle>Recent Custom Orders</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {stats.recentCustomOrders && stats.recentCustomOrders.length > 0 ? (
+                      stats.recentCustomOrders.map((order) => (
+                        <div key={order.id} className="flex items-center justify-between p-3 border rounded-lg">
+                          <div className="flex items-center space-x-3">
+                            <div>
+                              <p className="font-medium text-sm">{order.orderType || 'Custom Order'}</p>
+                              <p className="text-xs text-gray-600">{order.user?.name || order.user?.email}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium">₹{order.totalPrice || 0}</p>
+                              <p className="text-xs text-gray-600">{new Date(order.createdAt).toLocaleDateString()}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Badge className={`text-xs ${
+                              order.status === 'DELIVERED' ? 'bg-green-100 text-green-800' :
+                              order.status === 'IN_PRODUCTION' ? 'bg-blue-100 text-blue-800' :
+                              order.status === 'READY_FOR_DELIVERY' ? 'bg-purple-100 text-purple-800' :
+                              'bg-yellow-100 text-yellow-800'
+                            }`}>
+                              {order.status || 'PENDING'}
+                            </Badge>
+                            <Button variant="ghost" size="icon" className="h-6 w-6">
+                              <Eye className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-8">
+                        <Scissors className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                        <h3 className="text-lg font-medium text-gray-900 mb-2">No Custom Orders</h3>
+                        <p className="text-gray-600">No custom design orders have been placed yet.</p>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+            </div>
+            
+            <div className="mt-6">
               <Card>
                 <CardHeader>
                   <CardTitle>Quick Actions</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-3">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <Link href="/admin/custom-design/orders">
                       <Button className="w-full justify-start" variant="outline">
                         <Ruler className="h-4 w-4 mr-2" />
@@ -487,7 +560,6 @@ export default function AdminDashboard() {
                         Manage Fabrics
                       </Button>
                     </Link>
-
                     <Link href="/admin/custom-design/appointments">
                       <Button className="w-full justify-start" variant="outline">
                         <Calendar className="h-4 w-4 mr-2" />

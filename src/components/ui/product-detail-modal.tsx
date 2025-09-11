@@ -93,22 +93,22 @@ export function ProductDetailModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-xl font-bold">{model.name}</DialogTitle>
+      <DialogContent className="max-w-7xl w-[95vw] max-h-[95vh] overflow-y-auto p-0">
+        <DialogHeader className="p-6 pb-0">
+          <DialogTitle className="text-2xl font-bold">{model.name}</DialogTitle>
         </DialogHeader>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="flex flex-col lg:flex-row gap-6 p-6 pt-4">
           {/* Image Gallery */}
-          <div className="space-y-3">
-            <div className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden group">
+          <div className="flex-1 lg:flex-[2] space-y-4">
+            <div className="relative w-full h-[60vh] lg:h-[70vh] bg-gray-100 rounded-lg overflow-hidden group">
               {currentImage || !imageError ? (
                 <>
                   <img
                     ref={imageRef}
                     src={imageSrc}
                     alt={model.name}
-                    className={`w-full h-full object-cover transition-transform duration-300 cursor-zoom-in ${
+                    className={`w-full h-full object-contain transition-transform duration-300 cursor-zoom-in ${
                       isZoomed ? 'scale-200 cursor-zoom-out' : ''
                     }`}
                     style={isZoomed ? {
@@ -151,7 +151,7 @@ export function ProductDetailModal({
             
             {/* Thumbnail navigation */}
             {allImages.length > 1 && (
-              <div className="flex gap-2 overflow-x-auto pb-2">
+              <div className="flex gap-3 overflow-x-auto pb-2 justify-center lg:justify-start">
                 {allImages.map((image, index) => (
                   <button
                     key={index}
@@ -160,7 +160,7 @@ export function ProductDetailModal({
                       setImageError(false)
                       setIsZoomed(false)
                     }}
-                    className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-colors ${
+                    className={`flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-colors hover:border-blue-400 ${
                       index === currentImageIndex ? 'border-blue-600' : 'border-gray-300'
                     }`}
                   >
@@ -187,7 +187,7 @@ export function ProductDetailModal({
           </div>
 
           {/* Details */}
-          <div className="space-y-4">
+          <div className="flex-1 lg:max-w-md space-y-6">
             {/* Rating */}
             {model.rating && (
               <div className="flex items-center gap-2">
@@ -210,23 +210,23 @@ export function ProductDetailModal({
             )}
 
             {/* Price */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-3">
-                <span className="text-2xl font-bold text-gray-900">
+            <div className="space-y-3">
+              <div className="flex items-center gap-4">
+                <span className="text-3xl font-bold text-gray-900">
                   ₹{model.finalPrice.toLocaleString()}
                 </span>
                 {model.discount && (
-                  <span className="text-lg text-gray-500 line-through">
+                  <span className="text-xl text-gray-500 line-through">
                     ₹{model.price.toLocaleString()}
                   </span>
                 )}
               </div>
               {model.discount && (
-                <div className="flex items-center gap-2">
-                  <Badge className="bg-red-500 text-white">
+                <div className="flex items-center gap-3">
+                  <Badge className="bg-red-500 text-white text-sm px-3 py-1">
                     {model.discount}% OFF
                   </Badge>
-                  <span className="text-green-600 font-medium">
+                  <span className="text-green-600 font-semibold">
                     You save ₹{(model.price - model.finalPrice).toLocaleString()}
                   </span>
                 </div>
@@ -235,7 +235,7 @@ export function ProductDetailModal({
 
             {/* Select Button */}
             <Button 
-              className="w-full bg-blue-600 hover:bg-blue-700" 
+              className="w-full bg-blue-600 hover:bg-blue-700 text-lg py-6" 
               size="lg"
               onClick={() => onSelectModel(model)}
             >
