@@ -20,6 +20,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { useAuth } from "@/contexts/AuthContext"
+import { resolveImagePath } from "@/lib/image-utils"
 
 interface BlouseModel {
   id: string
@@ -124,15 +125,71 @@ export default function OrderDetailPage() {
             tax: data.order.tax,
             createdAt: data.order.createdAt,
             updatedAt: data.order.updatedAt,
-            items: data.order.orderItems.map((item: any) => ({
-              id: item.id,
-              name: item.product?.name || 'Custom Product',
-              price: item.price,
-              quantity: item.quantity,
-              image: item.product?.images?.split(',')[0] || '/api/placeholder/300/400',
-              size: item.size,
-              color: item.color
-            })),
+            items: data.order.orderItems.map((item: any) => {
+              let imageUrl = '/api/placeholder/300/400';
+              let itemName = item.product?.name || 'Custom Product';
+              
+              // Handle custom design items with model information
+              if (item.productId === 'custom-blouse') {
+                // Try to parse model info from size field first
+                try {
+                  if (item.size && item.size.startsWith('{')) {
+                    const sizeData = JSON.parse(item.size)
+                    if (sizeData.modelImage) imageUrl = sizeData.modelImage
+                    if (sizeData.modelName) itemName = `Custom Blouse - ${sizeData.modelName}`
+                  }
+                } catch (e) {}
+                // Fallback to existing logic
+                if (imageUrl === '/api/placeholder/300/400') {
+                  imageUrl = item.blouseModel?.image || 'assets/custom/custom-blouse-default.png'
+                }
+                if (itemName === (item.product?.name || 'Custom Product')) {
+                  itemName = item.blouseModel?.name ? `Custom Blouse - ${item.blouseModel.name}` : 'Custom Blouse Design'
+                }
+              } else if (item.productId === 'custom-salwar-kameez') {
+                try {
+                  if (item.size && item.size.startsWith('{')) {
+                    const sizeData = JSON.parse(item.size)
+                    if (sizeData.modelImage) imageUrl = sizeData.modelImage
+                    if (sizeData.modelName) itemName = `Custom Salwar - ${sizeData.modelName}`
+                  }
+                } catch (e) {}
+                if (imageUrl === '/api/placeholder/300/400') {
+                  imageUrl = item.blouseModel?.image || 'assets/custom/custom-salwar-default.png'
+                }
+                if (itemName === (item.product?.name || 'Custom Product')) {
+                  itemName = item.blouseModel?.name ? `Custom Salwar - ${item.blouseModel.name}` : 'Custom Salwar Design'
+                }
+              } else if (item.productId === 'custom-lehenga') {
+                try {
+                  if (item.size && item.size.startsWith('{')) {
+                    const sizeData = JSON.parse(item.size)
+                    if (sizeData.modelImage) imageUrl = sizeData.modelImage
+                    if (sizeData.modelName) itemName = `Custom Lehenga - ${sizeData.modelName}`
+                  }
+                } catch (e) {}
+                if (imageUrl === '/api/placeholder/300/400') {
+                  imageUrl = item.blouseModel?.image || 'assets/custom/custom-lehenga-default.png'
+                }
+                if (itemName === (item.product?.name || 'Custom Product')) {
+                  itemName = item.blouseModel?.name ? `Custom Lehenga - ${item.blouseModel.name}` : 'Custom Lehenga Design'
+                }
+              } else if (item.product?.images) {
+                imageUrl = item.product.images.split(',')[0];
+              }
+              
+              return {
+                id: item.id,
+                name: itemName,
+                price: item.price,
+                quantity: item.quantity,
+                image: resolveImagePath(imageUrl),
+                size: item.size,
+                color: item.color,
+                blouseModel: item.blouseModel,
+                customDesign: item.customDesign
+              };
+            }),
             shippingAddress: data.order.address ? {
               firstName: data.order.address.firstName || '',
               lastName: data.order.address.lastName || '',
@@ -388,22 +445,16 @@ export default function OrderDetailPage() {
                       <div key={item.id} className="p-4 bg-gray-50 rounded-lg">
                         <div className="flex items-start gap-4">
                           {/* Item Image */}
-                          <div className="w-20 h-20 bg-gray-200 rounded-lg flex items-center justify-center flex-shrink-0">
-                            {item.blouseModel?.image ? (
-                              <img 
-                                src={item.blouseModel.image} 
-                                alt={item.blouseModel.name}
-                                className="w-full h-full object-cover rounded-lg"
-                              />
-                            ) : item.image && item.image !== '/api/placeholder/300/400' ? (
-                              <img 
-                                src={item.image} 
-                                alt={item.name}
-                                className="w-full h-full object-cover rounded-lg"
-                              />
-                            ) : (
-                              <Package className="h-8 w-8 text-gray-400" />
-                            )}
+                          <div className="w-24 h-24 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
+                            <img
+                              src={resolveImagePath(item.blouseModel?.image || item.image)}
+                              alt={item.blouseModel?.name || item.name}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement
+                                target.src = '/api/placeholder/96/96'
+                              }}
+                            />
                           </div>
                           
                           {/* Item Details */}

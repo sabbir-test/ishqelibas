@@ -149,7 +149,9 @@ export default function CheckoutPage() {
           quantity: item.quantity,
           finalPrice: item.finalPrice,
           name: item.name,
-          customDesign: item.customDesign
+          customDesign: item.customDesign,
+          size: item.size,
+          color: item.color
         })),
         shippingInfo: {
           firstName: shippingInfo.firstName,

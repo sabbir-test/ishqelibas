@@ -39,6 +39,7 @@ import {
 } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
 import Link from "next/link"
+import { resolveImagePath } from "@/lib/image-utils"
 
 interface OrderItem {
   id: string
@@ -48,6 +49,17 @@ interface OrderItem {
   image: string
   size?: string
   color?: string
+  blouseModel?: {
+    name: string
+    designName?: string
+    image?: string
+  }
+  customDesign?: {
+    fabric: string
+    fabricColor: string
+    frontDesign: string
+    backDesign: string
+  }
 }
 
 interface Order {
@@ -165,22 +177,70 @@ export default function OrdersPage() {
             updatedAt: order.updatedAt,
             items: order.orderItems.map((item: any) => {
               let imageUrl = '/api/placeholder/300/400';
+              let itemName = item.product?.name || 'Custom Product';
               
-              // Handle custom blouse design with better fallback
+              // Handle custom design items with model information
               if (item.productId === 'custom-blouse') {
-                imageUrl = '/images/custom-blouse-default.svg';
+                // Try to parse model info from size field first
+                try {
+                  if (item.size && item.size.startsWith('{')) {
+                    const sizeData = JSON.parse(item.size)
+                    if (sizeData.modelImage) imageUrl = sizeData.modelImage
+                    if (sizeData.modelName) itemName = `Custom Blouse - ${sizeData.modelName}`
+                  }
+                } catch (e) {}
+                // Fallback to existing logic
+                if (imageUrl === '/api/placeholder/300/400') {
+                  imageUrl = item.blouseModel?.image || 'assets/custom/custom-blouse-default.png'
+                }
+                if (itemName === (item.product?.name || 'Custom Product')) {
+                  itemName = item.blouseModel?.name ? `Custom Blouse - ${item.blouseModel.name}` : 'Custom Blouse Design'
+                }
+              } else if (item.productId === 'custom-salwar-kameez') {
+                try {
+                  if (item.size && item.size.startsWith('{')) {
+                    const sizeData = JSON.parse(item.size)
+                    if (sizeData.modelImage) imageUrl = sizeData.modelImage
+                    if (sizeData.modelName) itemName = `Custom Salwar - ${sizeData.modelName}`
+                  }
+                } catch (e) {}
+                if (imageUrl === '/api/placeholder/300/400') {
+                  imageUrl = item.blouseModel?.image || 'assets/custom/custom-salwar-default.png'
+                }
+                if (itemName === (item.product?.name || 'Custom Product')) {
+                  itemName = item.blouseModel?.name ? `Custom Salwar - ${item.blouseModel.name}` : 'Custom Salwar Design'
+                }
+              } else if (item.productId === 'custom-lehenga') {
+                try {
+                  if (item.size && item.size.startsWith('{')) {
+                    const sizeData = JSON.parse(item.size)
+                    if (sizeData.modelImage) imageUrl = sizeData.modelImage
+                    if (sizeData.modelName) itemName = `Custom Lehenga - ${sizeData.modelName}`
+                  }
+                } catch (e) {}
+                if (imageUrl === '/api/placeholder/300/400') {
+                  imageUrl = item.blouseModel?.image || 'assets/custom/custom-lehenga-default.png'
+                }
+                if (itemName === (item.product?.name || 'Custom Product')) {
+                  itemName = item.blouseModel?.name ? `Custom Lehenga - ${item.blouseModel.name}` : 'Custom Lehenga Design'
+                }
               } else if (item.product?.images) {
                 imageUrl = item.product.images.split(',')[0];
               }
               
+              // Resolve the image path properly
+              imageUrl = resolveImagePath(imageUrl);
+              
               return {
                 id: item.id,
-                name: item.product?.name || 'Custom Product',
+                name: itemName,
                 price: item.price,
                 quantity: item.quantity,
                 image: imageUrl,
                 size: item.size,
-                color: item.color
+                color: item.color,
+                blouseModel: item.blouseModel,
+                customDesign: item.customDesign
               };
             }),
             shippingAddress: shippingAddress,
@@ -495,19 +555,27 @@ export default function OrdersPage() {
                       {/* Order Items */}
                       <div className="space-y-3 mb-4">
                         {order.items.map((item) => (
-                          <div key={item.id} className="flex items-center gap-3">
-                            <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center">
-                              <Package className="h-8 w-8 text-gray-400" />
+                          <div key={item.id} className="flex items-center gap-4">
+                            <div className="w-20 h-20 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
+                              <img
+                                src={resolveImagePath(item.image)}
+                                alt={item.name}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  const target = e.target as HTMLImageElement
+                                  target.src = '/api/placeholder/80/80'
+                                }}
+                              />
                             </div>
-                            <div className="flex-1">
-                              <h4 className="font-medium text-gray-900">{item.name}</h4>
-                              <div className="flex gap-2 text-sm text-gray-500">
+                            <div className="flex-1 min-w-0">
+                              <h4 className="font-medium text-gray-900 truncate">{item.name}</h4>
+                              <div className="flex flex-wrap gap-2 text-sm text-gray-500 mt-1">
                                 <span>Qty: {item.quantity}</span>
                                 {item.size && <span>Size: {item.size}</span>}
                                 {item.color && <span>Color: {item.color}</span>}
                               </div>
                             </div>
-                            <div className="text-right">
+                            <div className="text-right flex-shrink-0">
                               <p className="font-medium text-gray-900">
                                 <IndianRupee className="inline h-3 w-3" />{item.price}
                               </p>

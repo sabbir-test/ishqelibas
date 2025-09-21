@@ -140,17 +140,22 @@ export async function POST(request: NextRequest) {
       if ((item.productId === "custom-blouse" || item.productId === "custom-salwar-kameez" || item.productId === "custom-lehenga") && item.customDesign) {
         console.log('🎨 Creating custom order for:', item.productId)
         
-        // Create custom order record
+        // Create custom order record with model information
         const customOrder = await db.customOrder.create({
           data: {
             userId,
             fabric: item.customDesign.fabric?.name || "Custom Fabric",
             fabricColor: item.customDesign.fabric?.color || "#000000",
-            frontDesign: item.customDesign.frontDesign?.name || item.customDesign.selectedModel?.name || "Custom Front Design",
-            backDesign: item.customDesign.backDesign?.name || item.customDesign.selectedModel?.designName || "Custom Back Design",
+            frontDesign: item.customDesign.frontDesign?.name || item.customDesign.selectedModel?.name || item.customDesign.selectedModels?.frontModel?.name || "Custom Front Design",
+            backDesign: item.customDesign.backDesign?.name || item.customDesign.selectedModel?.designName || item.customDesign.selectedModels?.frontModel?.designName || "Custom Back Design",
             oldMeasurements: JSON.stringify(item.customDesign.measurements || {}),
             price: item.finalPrice,
-            notes: item.customDesign.ownFabricDetails?.description || `Custom ${item.customDesign.appointmentPurpose || 'design'}`,
+            notes: JSON.stringify({
+              description: item.customDesign.ownFabricDetails?.description || `Custom ${item.customDesign.appointmentPurpose || 'design'}`,
+              selectedModel: item.customDesign.selectedModel || item.customDesign.selectedModels?.frontModel || null,
+              modelImage: item.customDesign.selectedModel?.image || item.customDesign.selectedModels?.frontModel?.image || null,
+              modelName: item.customDesign.selectedModel?.name || item.customDesign.selectedModels?.frontModel?.name || null
+            }),
             appointmentDate: item.customDesign.appointmentDate ? new Date(item.customDesign.appointmentDate) : null,
             appointmentType: item.customDesign.appointmentType || null,
             appointmentPurpose: item.customDesign.appointmentPurpose || null
@@ -213,17 +218,28 @@ export async function POST(request: NextRequest) {
           console.log('✅ Blouse measurements created')
         }
 
-        // Create order item that references the virtual product
-        await db.orderItem.create({
-          data: {
-            orderId: order.id,
-            productId: item.productId,
-            quantity: item.quantity,
-            price: item.finalPrice,
-            size: item.size,
-            color: item.color
-          }
-        })
+        // Create order item with model information stored directly
+        const orderItemData = {
+          orderId: order.id,
+          productId: item.productId,
+          quantity: item.quantity,
+          price: item.finalPrice,
+          size: item.size || null,
+          color: item.color || null
+        }
+
+        // Store model information in size field as JSON for custom designs
+        if (item.customDesign?.selectedModel || item.customDesign?.selectedModels?.frontModel) {
+          const modelInfo = item.customDesign.selectedModel || item.customDesign.selectedModels?.frontModel
+          orderItemData.size = JSON.stringify({
+            originalSize: item.size,
+            modelName: modelInfo.name,
+            modelImage: modelInfo.image,
+            modelDesignName: modelInfo.designName || modelInfo.name
+          })
+        }
+
+        await db.orderItem.create({ data: orderItemData })
       } else {
         // Validate product exists before creating order item
         if (item.productId) {
@@ -393,7 +409,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized access to orders" }, { status: 403 })
     }
 
-    // Fetch orders only for the authenticated user with enhanced data
+    // Fetch orders only for the authenticated user with enhanced data including custom orders
     const allOrders = await db.order.findMany({
       where: { userId: authenticatedUser.id },
       include: {
@@ -429,10 +445,98 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: "desc" }
     })
 
+    // Fetch custom orders for this user to match with order items
+    const customOrders = await db.customOrder.findMany({
+      where: { userId: authenticatedUser.id },
+      select: {
+        id: true,
+        fabric: true,
+        fabricColor: true,
+        frontDesign: true,
+        backDesign: true,
+        notes: true,
+        appointmentPurpose: true,
+        createdAt: true
+      }
+    })
+
     console.log(`📊 Raw orders found: ${allOrders.length}`)
 
+    // Match custom orders with order items and enhance order data
+    const enhancedOrders = allOrders.map(order => {
+      const enhancedOrderItems = order.orderItems.map(item => {
+        let customDesignInfo = null
+        let modelInfo = null
+
+        // Check if this is a custom design item
+        if (['custom-blouse', 'custom-salwar-kameez', 'custom-lehenga'].includes(item.productId)) {
+          // Try to parse model info from size field first (new method)
+          try {
+            if (item.size && item.size.startsWith('{')) {
+              const sizeData = JSON.parse(item.size)
+              if (sizeData.modelName) {
+                modelInfo = {
+                  name: sizeData.modelName,
+                  designName: sizeData.modelDesignName || sizeData.modelName,
+                  image: sizeData.modelImage
+                }
+              }
+            }
+          } catch (e) {
+            // Size field is not JSON, continue to fallback
+          }
+
+          // Fallback to custom order matching if no model info found
+          if (!modelInfo) {
+            const matchingCustomOrder = customOrders.find(co => {
+              const purposeMatch = (
+                (item.productId === 'custom-blouse' && co.appointmentPurpose === 'blouse') ||
+                (item.productId === 'custom-salwar-kameez' && co.appointmentPurpose === 'salwar') ||
+                (item.productId === 'custom-lehenga' && co.appointmentPurpose === 'lehenga')
+              )
+              const timeMatch = Math.abs(new Date(co.createdAt).getTime() - new Date(order.createdAt).getTime()) < 24 * 60 * 60 * 1000
+              return purposeMatch && timeMatch
+            })
+
+            if (matchingCustomOrder) {
+              customDesignInfo = {
+                fabric: matchingCustomOrder.fabric,
+                fabricColor: matchingCustomOrder.fabricColor,
+                frontDesign: matchingCustomOrder.frontDesign,
+                backDesign: matchingCustomOrder.backDesign
+              }
+
+              try {
+                const notesData = JSON.parse(matchingCustomOrder.notes || '{}')
+                if (notesData.selectedModel || notesData.modelName) {
+                  modelInfo = {
+                    name: notesData.modelName || notesData.selectedModel?.name || matchingCustomOrder.frontDesign,
+                    designName: notesData.selectedModel?.designName || matchingCustomOrder.frontDesign,
+                    image: notesData.modelImage || notesData.selectedModel?.image || null
+                  }
+                }
+              } catch (e) {
+                console.log('Notes is not JSON for custom order:', matchingCustomOrder.id)
+              }
+            }
+          }
+        }
+
+        return {
+          ...item,
+          customDesign: customDesignInfo,
+          blouseModel: modelInfo
+        }
+      })
+
+      return {
+        ...order,
+        orderItems: enhancedOrderItems
+      }
+    })
+
     // Enhanced filtering for legitimate orders
-    const legitimateOrders = allOrders.filter(order => {
+    const legitimateOrders = enhancedOrders.filter(order => {
       // Basic validation - order must have items
       if (!order.orderItems || order.orderItems.length === 0) {
         console.log(`🚫 Filtering out order ${order.orderNumber}: No items`)
